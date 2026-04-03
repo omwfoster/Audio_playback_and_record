@@ -31,6 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 #include "final_boss_audio.h"
 
 /* USER CODE END Includes */
@@ -108,8 +109,6 @@ void Error_Handler(void);
 #define LD_USER1_GPIO_Port GPIOJ
 #define Audio_INT_Pin GPIO_PIN_12
 #define Audio_INT_GPIO_Port GPIOJ
-#define uSD_CLK_Pin GPIO_PIN_6
-#define uSD_CLK_GPIO_Port GPIOD
 #define FMC_D2_Pin GPIO_PIN_0
 #define FMC_D2_GPIO_Port GPIOD
 #define DFSDM_DATIN5_Pin GPIO_PIN_11

@@ -26,6 +26,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+UART_HandleTypeDef huart1;
 
 /* USER CODE END PTD */
 
@@ -73,8 +74,9 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-static void DFSDM_Init(void);
+
 static void CPU_CACHE_Enable(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -90,11 +92,14 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  uint32_t i;
 
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
+  /* Enable the CPU Cache */
+  CPU_CACHE_Enable();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -116,6 +121,7 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
   BSP_AUDIO_IN_Init(AUDIO_FREQUENCY_16K, DEFAULT_AUDIO_IN_BIT_RESOLUTION, DEFAULT_AUDIO_IN_CHANNEL_NBR);
+  MX_USART1_UART_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -123,6 +129,30 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	    if((DmaLeftRecHalfBuffCplt == 1) && (DmaRightRecHalfBuffCplt == 1))
+	    {
+	      /* Store values on Play buff */
+	      for(i = 0; i < 1024; i++)
+	      {
+	        PlayBuff[2*i]     = SaturaLH((LeftRecBuff[i] >> 8), -32768, 32767);
+	        PlayBuff[(2*i)+1] = SaturaLH((RightRecBuff[i] >> 8), -32768, 32767);
+	      }
+
+	      DmaLeftRecHalfBuffCplt  = 0;
+	      DmaRightRecHalfBuffCplt = 0;
+	    }
+	    if((DmaLeftRecBuffCplt == 1) && (DmaRightRecBuffCplt == 1))
+	    {
+	      /* Store values on Play buff */
+	      for(i = 1024; i < 2048; i++)
+	      {
+	        PlayBuff[2*i]     = SaturaLH((LeftRecBuff[i] >> 8), -32768, 32767);
+	        PlayBuff[(2*i)+1] = SaturaLH((RightRecBuff[i] >> 8), -32768, 32767);
+	      }
+	      DmaLeftRecBuffCplt  = 0;
+	      DmaRightRecBuffCplt = 0;
+	    }
+
 
     /* USER CODE BEGIN 3 */
   }
@@ -266,21 +296,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF10_SDMMC2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : uSD_CMD_Pin uSD_CLK_Pin */
-  GPIO_InitStruct.Pin = uSD_CMD_Pin|uSD_CLK_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF11_SDMMC2;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : WIFI_RX_Pin */
-  GPIO_InitStruct.Pin = WIFI_RX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF8_UART5;
-  HAL_GPIO_Init(WIFI_RX_GPIO_Port, &GPIO_InitStruct);
+
 
   /*Configure GPIO pin : CEC_Pin */
   GPIO_InitStruct.Pin = CEC_Pin;
@@ -341,13 +358,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF12_FMC;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DFSDM_DATIN5_Pin DFSDM_DATIN1_Pin */
-  GPIO_InitStruct.Pin = DFSDM_DATIN5_Pin|DFSDM_DATIN1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF3_DFSDM1;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
 
   /*Configure GPIO pins : QSPI_D1_Pin QSPI_D0_Pin */
   GPIO_InitStruct.Pin = QSPI_D1_Pin|QSPI_D0_Pin;
@@ -448,13 +459,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF12_FMC;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : WIFI_TX_Pin */
-  GPIO_InitStruct.Pin = WIFI_TX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF8_UART5;
-  HAL_GPIO_Init(WIFI_TX_GPIO_Port, &GPIO_InitStruct);
+
 
   /*Configure GPIO pins : D23_Pin D21_Pin D22_Pin FMC_SDNME_Pin
                            FMC_SDNE0_Pin FMC_SDCKE0_Pin D20_Pin FMC_D_7_Pin
@@ -688,6 +693,50 @@ static void MX_GPIO_Init(void)
 /* USER CODE END 4 */
 
  /* MPU Configuration */
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
+static void CPU_CACHE_Enable(void)
+{
+  /* Enable I-Cache */
+  SCB_EnableICache();
+
+  /* Enable D-Cache */
+  SCB_EnableDCache();
+}
 
 void MPU_Config(void)
 {

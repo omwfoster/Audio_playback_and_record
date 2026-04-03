@@ -33,7 +33,6 @@
 /* Include ADV7533 HDMI Driver IC driver code */
 #include "../Components/adv7533/adv7533.h"
 #endif /* USE_LCD_HDMI */
-
 #include "stm32f769i_eval.h"
 #include <stdlib.h>
 
@@ -87,13 +86,18 @@
 #define AUDIO_DFSDMx_RIGHT_CHANNEL                      DFSDM_CHANNEL_0
 #define AUDIO_DFSDMx_LEFT_FILTER                        DFSDM1_Filter0
 #define AUDIO_DFSDMx_RIGHT_FILTER                       DFSDM1_Filter1
-#define AUDIO_DFSDMx_CLK_ENABLE()                       __HAL_RCC_DFSDM_CLK_ENABLE()
-#define AUDIO_DFSDMx_CKOUT_PIN                          GPIO_PIN_3
-#define AUDIO_DFSDMx_DMIC_DATIN_PIN                     GPIO_PIN_6
-#define AUDIO_DFSDMx_CKOUT_DMIC_DATIN_GPIO_PORT         GPIOD
+
+#define AUDIO_DFSDMx_CLK_ENABLE()                       __HAL_RCC_DFSDM1_CLK_ENABLE()
+
+#define AUDIO_DFSDMx_CKOUT_PIN          GPIO_PIN_3
+#define AUDIO_DFSDMx_DMIC_DATIN_PIN     GPIO_PIN_6
+#define AUDIO_DFSDMx_CKOUT_DMIC_DATIN_GPIO_PORT GPIOD
+#define AUDIO_DFSDMx_DMIC_DATIN_AF      GPIO_AF3_DFSDM1
+#define AUDIO_DFSDMx_CKOUT_AF           GPIO_AF3_DFSDM1
 #define AUDIO_DFSDMx_CKOUT_DMIC_DATIN_GPIO_CLK_ENABLE() __HAL_RCC_GPIOD_CLK_ENABLE()
-#define AUDIO_DFSDMx_DMIC_DATIN_AF                      GPIO_AF10_DFSDM1
-#define AUDIO_DFSDMx_CKOUT_AF                           GPIO_AF3_DFSDM1
+#define AUDIO_DFSDMx_DMIC_DATIN_AF      GPIO_AF3_DFSDM1
+#define AUDIO_DFSDMx_CKOUT_AF           GPIO_AF3_DFSDM1
+
     
 /* DFSDM DMA Right and Left channels definitions */
 #define AUDIO_DFSDMx_DMAx_CLK_ENABLE()                  __HAL_RCC_DMA2_CLK_ENABLE()

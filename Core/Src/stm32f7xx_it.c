@@ -22,6 +22,8 @@
 #include "stm32f7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,6 +59,9 @@
 /* External variables --------------------------------------------------------*/
 
 /* USER CODE BEGIN EV */
+
+extern DMA_HandleTypeDef hLeftDma;
+extern DMA_HandleTypeDef hRightDma;
 
 /* USER CODE END EV */
 
@@ -199,5 +204,20 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /* USER CODE BEGIN 1 */
+
+void DMA2_Stream0_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hLeftDma);
+}
+
+/**
+  * @brief  This function handles DMA2_Stream5 interrupt request.
+  * @param  None
+  * @retval None
+  */
+void DMA2_Stream5_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hRightDma);
+}
 
 /* USER CODE END 1 */

@@ -57,6 +57,9 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 /* USER CODE BEGIN EFP */
 
+void DMA2_Stream0_IRQHandler(void);
+void DMA2_Stream5_IRQHandler(void);
+
 /* USER CODE END EFP */
 
 #ifdef __cplusplus
