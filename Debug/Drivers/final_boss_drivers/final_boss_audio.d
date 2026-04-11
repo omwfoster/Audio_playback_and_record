@@ -31,7 +31,9 @@ Drivers/final_boss_drivers/final_boss_audio.o: \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_pwr_ex.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h \
- ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h
+ ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h \
+ ../Core/Inc/main.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/final_boss_audio.h
 ../Drivers/final_boss_drivers/final_boss_audio.h:
 ../Drivers/final_boss_drivers/stm32f769i_eval.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h:
@@ -64,3 +66,5 @@ Drivers/final_boss_drivers/final_boss_audio.o: \
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h:
+../Core/Inc/main.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/final_boss_audio.h:

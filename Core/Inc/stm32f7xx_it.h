@@ -57,8 +57,13 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 /* USER CODE BEGIN EFP */
 
+
+void DMA2_Stream6_IRQHandler(void);
 void DMA2_Stream0_IRQHandler(void);
-void DMA2_Stream5_IRQHandler(void);
+
+void AUDIO_DFSDMx_DMAx_TOP_LEFT_IRQHandler(void);
+void AUDIO_DFSDMx_DMAx_TOP_RIGHT_IRQHandler(void);
+
 
 /* USER CODE END EFP */
 

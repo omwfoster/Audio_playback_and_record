@@ -119,7 +119,7 @@
              CONFIGURATION: Audio Driver Configuration parameters
 ------------------------------------------------------------------------------*/
 
-#define AUDIODATA_SIZE                      2   /* 16-bits audio data size */
+
 
 /* Audio status definition */     
 #define AUDIO_OK                            ((uint8_t)0)
@@ -128,9 +128,7 @@
 
 /* AudioFreq * DataSize (2 bytes) * NumChannels (Stereo: 2) */
 #define DEFAULT_AUDIO_IN_FREQ               I2S_AUDIOFREQ_16K
-#define DEFAULT_AUDIO_IN_BIT_RESOLUTION     ((uint8_t)16)
-#define DEFAULT_AUDIO_IN_CHANNEL_NBR        ((uint8_t)2) /* Mono = 1, Stereo = 2 */
-#define DEFAULT_AUDIO_IN_VOLUME             ((uint16_t)64)
+
 
 
 
@@ -182,7 +180,8 @@
 uint8_t BSP_AUDIO_IN_Init(uint32_t AudioFreq, uint32_t BitRes, uint32_t ChnlNbr);
 uint8_t BSP_AUDIO_IN_AllocScratch (int32_t *pScratch, uint32_t size);
 void    BSP_AUDIO_IN_DeInit(void);
-uint8_t BSP_AUDIO_IN_Record(uint16_t *pData, uint32_t Size);
+void 	BSP_AUDIO_IN_Start_Sample();
+uint8_t BSP_AUDIO_IN_Start(uint16_t* pbuf, uint32_t size);
 uint8_t BSP_AUDIO_IN_Stop(void);
 uint8_t BSP_AUDIO_IN_Pause(void);
 uint8_t BSP_AUDIO_IN_Resume(void);

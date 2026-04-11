@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "final_boss_audio.h"
 #include "stm32f7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -60,8 +61,8 @@
 
 /* USER CODE BEGIN EV */
 
-extern DMA_HandleTypeDef hLeftDma;
-extern DMA_HandleTypeDef hRightDma;
+extern DFSDM_Filter_HandleTypeDef       haudio_in_dfsdm_leftfilter;
+extern DFSDM_Filter_HandleTypeDef       haudio_in_dfsdm_rightfilter;
 
 /* USER CODE END EV */
 
@@ -205,19 +206,20 @@ void SysTick_Handler(void)
 
 /* USER CODE BEGIN 1 */
 
-void DMA2_Stream0_IRQHandler(void)
+void AUDIO_DFSDM_DMAx_LEFT_IRQHandler(void)
 {
-  HAL_DMA_IRQHandler(&hLeftDma);
+  HAL_DMA_IRQHandler(haudio_in_dfsdm_leftfilter.hdmaReg);
 }
 
 /**
-  * @brief  This function handles DMA2_Stream5 interrupt request.
-  * @param  None
+  * @brief This function handles DMA2 Stream 0 interrupt request.
+  * @param None
   * @retval None
   */
-void DMA2_Stream5_IRQHandler(void)
+void AUDIO_DFSDM_DMAx_RIGHT_IRQHandler(void)
 {
-  HAL_DMA_IRQHandler(&hRightDma);
+  HAL_DMA_IRQHandler(haudio_in_dfsdm_rightfilter.hdmaReg);
 }
+
 
 /* USER CODE END 1 */

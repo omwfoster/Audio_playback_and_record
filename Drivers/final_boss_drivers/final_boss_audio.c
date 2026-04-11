@@ -2,6 +2,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "final_boss_audio.h"
+#include "main.h"
 
 
 typedef struct
@@ -63,6 +64,8 @@ typedef struct
 /*### RECORD ###*/
 AUDIOIN_TypeDef                 hAudioIn;
 
+
+
 DFSDM_Channel_HandleTypeDef     haudio_in_dfsdm_leftchannel;
 DFSDM_Channel_HandleTypeDef     haudio_in_dfsdm_rightchannel;
 DFSDM_Filter_HandleTypeDef      haudio_in_dfsdm_leftfilter;
@@ -71,26 +74,32 @@ DMA_HandleTypeDef               hdma_dfsdm_left;
 DMA_HandleTypeDef               hdma_dfsdm_right;
 
 /* Buffers for right and left samples */
-int32_t                         *pScratchBuff[DEFAULT_AUDIO_IN_CHANNEL_NBR];
+
+int32_t                         *pScratchBuff[CHANNEL_NBR];
 int32_t                         ScratchSize;
 
 
 
 /* Buffers status flags */
-uint32_t                        DmaLeftRecHalfBuffCplt  = 0;
-uint32_t                        DmaLeftRecBuffCplt      = 0;
-uint32_t                        DmaRightRecHalfBuffCplt = 0;
-uint32_t                        DmaRightRecBuffCplt     = 0;
+
+uint32_t                        DmaRecHalfBuffCplt  = 0;
+
+uint32_t                        DmaRecBuffCplt      = 0;
+
 
 /* Application Buffer Trigger */
 __IO uint32_t                   AppBuffTrigger          = 0;
 __IO uint32_t                   AppBuffHalf             = 0;
 
-#if defined(USE_LCD_HDMI)
-AUDIO_DrvTypeDef          *hdmi_drv;
-/* Audio device ID */
-static uint32_t                 DeviceId = 0x00;
-#endif /* USE_LCD_HDMI */
+#define SCRATCH_BUFF_SIZE  512
+
+__attribute__((section(".dma_buffers")))
+int32_t Scratch[SCRATCH_BUFF_SIZE];
+
+__attribute__((section(".dma_buffers")))
+static AUDIO_IN_BufferTypeDef  BufferCtl;
+
+static __IO uint32_t uwVolume = 100;
 
 /**
   * @}
@@ -115,6 +124,20 @@ static uint8_t DFSDMx_DeInit(void);
 /** @defgroup STM32F769I_EVAL_AUDIO_out_Private_Functions STM32F769I_EVAL_AUDIO_Out Private Functions
   * @{
   */ 
+
+
+void BSP_AUDIO_IN_Start_Sample()
+{
+
+	uint32_t byteswritten = 0;
+    BSP_AUDIO_IN_Init(AUDIO_FREQUENCY_16K, BIT_RESOLUTION, CHANNEL_NBR);
+    BSP_AUDIO_IN_AllocScratch (Scratch, SCRATCH_BUFF_SIZE);
+    BSP_AUDIO_IN_Start((uint16_t*)&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE);
+    BufferCtl.fptr = byteswritten;
+    BufferCtl.pcm_ptr = 0;
+    BufferCtl.offset = 0;
+    BufferCtl.wr_state = BUFFER_EMPTY;
+}
 
 /**
   * @brief  Initialize wave recording. 
@@ -148,10 +171,10 @@ uint8_t BSP_AUDIO_IN_AllocScratch (int32_t *pScratch, uint32_t size)
 { 
   uint32_t idx;
   
-  ScratchSize = size / DEFAULT_AUDIO_IN_CHANNEL_NBR;
+  ScratchSize = size / CHANNEL_NBR;
   
   /* copy scratch pointers */
-  for (idx = 0; idx < DEFAULT_AUDIO_IN_CHANNEL_NBR ; idx++)
+  for (idx = 0; idx < CHANNEL_NBR ; idx++)
   {
     pScratchBuff[idx] = (int32_t *)(pScratch + idx * ScratchSize);
   }
@@ -165,7 +188,7 @@ uint8_t BSP_AUDIO_IN_AllocScratch (int32_t *pScratch, uint32_t size)
   * @param  size: Current size of the recorded buffer
   * @retval AUDIO_OK if correct communication, else wrong communication
   */
-uint8_t BSP_AUDIO_IN_Record(uint16_t* pbuf, uint32_t size)
+uint8_t BSP_AUDIO_IN_Start(uint16_t* pbuf, uint32_t size)
 {
   hAudioIn.pRecBuf = pbuf;
   hAudioIn.RecSize = size;
@@ -280,25 +303,15 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
 {
   uint32_t index = 0;
 
-  if(hdfsdm_filter == &haudio_in_dfsdm_leftfilter)
-  {
-    DmaLeftRecBuffCplt = 1;
-  }
-  else
-  {
-    DmaRightRecBuffCplt = 1;
-  }    
-    if((DmaLeftRecBuffCplt == 1) && (DmaRightRecBuffCplt == 1))
-    {    
+
+
     for(index = (ScratchSize/2) ; index < ScratchSize; index++)
     {
       hAudioIn.pRecBuf[AppBuffTrigger]     = (uint16_t)(SaturaLH((pScratchBuff[0][index] >> 8), -32760, 32760));
       hAudioIn.pRecBuf[AppBuffTrigger + 1] = (uint16_t)(SaturaLH((pScratchBuff[1][index] >> 8), -32760, 32760));
       AppBuffTrigger +=2;
     }
-      DmaLeftRecBuffCplt  = 0;
-      DmaRightRecBuffCplt = 0;
-    }
+
 
   /* Call Half Transfer Complete callback */
   if((AppBuffTrigger == hAudioIn.RecSize/2) && (AppBuffHalf == 0))
@@ -326,25 +339,15 @@ void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_
 {
   uint32_t index = 0;
 
-    if(hdfsdm_filter == &haudio_in_dfsdm_leftfilter)
-    {
-      DmaLeftRecHalfBuffCplt = 1;
-    }
-    else
-    {
-      DmaRightRecHalfBuffCplt = 1;
-    }    
-    if((DmaLeftRecHalfBuffCplt == 1) && (DmaRightRecHalfBuffCplt == 1))
-    {
+
+
       for(index = 0; index < ScratchSize/2; index++)
       {
         hAudioIn.pRecBuf[AppBuffTrigger]     = (int16_t)(SaturaLH((pScratchBuff[0][index] >> 8), -32760, 32760));
         hAudioIn.pRecBuf[AppBuffTrigger + 1] = (int16_t)(SaturaLH((pScratchBuff[1][index] >> 8), -32760, 32760));
         AppBuffTrigger +=2;
       }
-      DmaLeftRecHalfBuffCplt  = 0;
-      DmaRightRecHalfBuffCplt = 0; 
-    }
+
 
   /* Call Half Transfer Complete callback */
   if((AppBuffTrigger == hAudioIn.RecSize/2) && (AppBuffHalf == 0))
