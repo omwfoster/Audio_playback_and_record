@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -55,13 +56,13 @@ DMA_HandleTypeDef hLeftDma;
 DMA_HandleTypeDef hRightDma;
 
 __attribute__((section(".dma_buffers")))
- int32_t LeftRecBuff[1024];
+ int32_t LeftRecBuff[FFT_BLOCK_SIZE * 2];
 __attribute__((section(".dma_buffers")))
- int32_t RightRecBuff[1024];
+ int32_t RightRecBuff[FFT_BLOCK_SIZE * 2];
 
-int16_t sample_block[2048];
+int16_t sample_block[FFT_BLOCK_SIZE * 2 * sizeof(int16_t)];
 
-extern uint32_t DmaRecBuffCplt;
+extern volatile uint32_t DmaRecBuffCplt;
 extern uint32_t DmaRecHalfBuffCplt;
 
 uint32_t PlaybackStarted = 0;
@@ -77,7 +78,7 @@ static void MX_GPIO_Init(void);
 
 static void CPU_CACHE_Enable(void);
 static void MX_USART1_UART_Init(void);
-static void start_sample();
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -129,30 +130,18 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		/* USER CODE END WHILE */
+
+
 		if (DmaRecHalfBuffCplt == 1) {
-			/* Store values on Play buff */
-			for (i = 0; i < 1024; i++) {
-				sample_block[2 * i] = SaturaLH((LeftRecBuff[i] >> 8), -32768,
-						32767);
-				sample_block[(2 * i) + 1] = SaturaLH((RightRecBuff[i] >> 8),
-						-32768, 32767);
-			}
-
-			DmaRecHalfBuffCplt = 0;
-
+		    DmaRecHalfBuffCplt = 0;
+		    memcpy(&sample_block[0],    &LeftRecBuff[0], 1024 * 2 * sizeof(int16_t));
+		} else if (DmaRecBuffCplt == 1) {
+		    DmaRecBuffCplt = 0;
+		    memcpy(&sample_block[0], 	&RightRecBuff[0], 1024 * 2 * sizeof(int16_t));
 		}
-		if (DmaRecBuffCplt == 1) {
-			/* Store values on Play buff */
-			for (i = 1024; i < 2048; i++) {
-				sample_block[2 * i] = SaturaLH((LeftRecBuff[i] >> 8), -32768,
-						32767);
-				sample_block[(2 * i) + 1] = SaturaLH((RightRecBuff[i] >> 8),
-						-32768, 32767);
-			}
 
-			DmaRecBuffCplt = 0;
-		}
+		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
+		HAL_Delay(100); // Delay for visibility
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -697,7 +686,7 @@ static void MX_USART1_UART_Init(void) {
 
 	/* USER CODE END USART1_Init 1 */
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 9600;
+	huart1.Init.BaudRate = 921600;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -759,6 +748,35 @@ void MPU_Config(void) {
 	MPU_InitStruct.Enable = MPU_REGION_ENABLE;
 
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+
+	/* Region 2: DTCM — stack, .bss, .data */
+	MPU_InitStruct.Number           = MPU_REGION_NUMBER2;
+	MPU_InitStruct.BaseAddress      = 0x20000000;
+	MPU_InitStruct.Size             = MPU_REGION_SIZE_128KB;
+	MPU_InitStruct.SubRegionDisable = 0x00;
+	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
+	HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+	/* Region 3: Flash — code */
+	MPU_InitStruct.Number           = MPU_REGION_NUMBER3;
+	MPU_InitStruct.BaseAddress      = 0x08000000;
+	MPU_InitStruct.Size             = MPU_REGION_SIZE_2MB;
+	MPU_InitStruct.SubRegionDisable = 0x00;
+	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
+	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
+	HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+
 	HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
 }
@@ -773,7 +791,7 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
 	DmaRecHalfBuffCplt = 0;
 	DmaRecBuffCplt = 1;
-	HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
+
 	BufferCtl.pcm_ptr += PCM_BUFFER_SIZE / 2;
 	if (BufferCtl.pcm_ptr == PCM_BUFFER_SIZE / 2) {
 		BufferCtl.wr_state = BUFFER_FULL;

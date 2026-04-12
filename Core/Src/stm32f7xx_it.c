@@ -106,12 +106,12 @@ void MemManage_Handler(void)
 {
   /* USER CODE BEGIN MemoryManagement_IRQn 0 */
 
-  /* USER CODE END MemoryManagement_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
-    /* USER CODE END W1_MemoryManagement_IRQn 0 */
-  }
+    volatile uint32_t mmfar = SCB->MMFAR;  // faulting address
+    volatile uint32_t mmfsr = SCB->CFSR & 0xFF; // MemManage status bits
+    __disable_irq();
+    while(1);
+
+
 }
 
 /**

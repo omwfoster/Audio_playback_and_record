@@ -3,6 +3,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "final_boss_audio.h"
 #include "main.h"
+#include <string.h>
+
+
+
 
 
 typedef struct
@@ -10,6 +14,21 @@ typedef struct
   uint16_t      *pRecBuf;       /* Pointer to record user buffer */
   uint32_t      RecSize;        /* Size to record in mono, double size to record in stereo */
 }AUDIOIN_TypeDef;
+
+
+#define SCRATCH_BUFF_SIZE  512
+
+__attribute__((section(".dma_buffers")))
+int32_t Scratch[SCRATCH_BUFF_SIZE];
+
+__attribute__((section(".dma_buffers")))
+static AUDIO_IN_BufferTypeDef  BufferCtl;
+
+__attribute__((section(".dma_buffers")))
+uint16_t raw_dma_samples[PCM_BUFFER_SIZE];
+
+static __IO uint32_t uwVolume = 100;
+
 
 
 
@@ -82,24 +101,16 @@ int32_t                         ScratchSize;
 
 /* Buffers status flags */
 
-uint32_t                        DmaRecHalfBuffCplt  = 0;
+volatile uint32_t                        DmaRecHalfBuffCplt  = 0;
 
-uint32_t                        DmaRecBuffCplt      = 0;
+volatile uint32_t                        DmaRecBuffCplt      = 0;
 
 
 /* Application Buffer Trigger */
 __IO uint32_t                   AppBuffTrigger          = 0;
 __IO uint32_t                   AppBuffHalf             = 0;
 
-#define SCRATCH_BUFF_SIZE  512
 
-__attribute__((section(".dma_buffers")))
-int32_t Scratch[SCRATCH_BUFF_SIZE];
-
-__attribute__((section(".dma_buffers")))
-static AUDIO_IN_BufferTypeDef  BufferCtl;
-
-static __IO uint32_t uwVolume = 100;
 
 /**
   * @}
@@ -130,6 +141,7 @@ void BSP_AUDIO_IN_Start_Sample()
 {
 
 	uint32_t byteswritten = 0;
+	hAudioIn.pRecBuf = (uint16_t*)raw_dma_samples;
     BSP_AUDIO_IN_Init(AUDIO_FREQUENCY_16K, BIT_RESOLUTION, CHANNEL_NBR);
     BSP_AUDIO_IN_AllocScratch (Scratch, SCRATCH_BUFF_SIZE);
     BSP_AUDIO_IN_Start((uint16_t*)&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE);
