@@ -19,6 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <string.h>
+#include <audio_stream_dsp/audio_stream.h>
+#include <audio_stream_dsp/audio_stream_fft.h>
+#include <audio_stream_dsp/audio_stream_tone.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -78,6 +81,7 @@ static void MX_GPIO_Init(void);
 
 static void CPU_CACHE_Enable(void);
 static void MX_USART1_UART_Init(void);
+static void HandleCommand(uint8_t cmd);
 
 /* USER CODE END PFP */
 
@@ -102,6 +106,7 @@ int main(void) {
 	/* Enable the CPU Cache */
 	CPU_CACHE_Enable();
 
+
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -125,11 +130,19 @@ int main(void) {
 	CHANNEL_NBR);
 	BSP_AUDIO_IN_Start_Sample();
 	MX_USART1_UART_Init();
+
+	AudioStream_Init(&huart1);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+
+		uint8_t cmd = AudioStream_ProcessCommand();
+		if(cmd!=0)
+		{
+		HandleCommand(cmd);
+		}
 
 
 		if (DmaRecHalfBuffCplt == 1) {
@@ -139,6 +152,8 @@ int main(void) {
 		    DmaRecBuffCplt = 0;
 		    memcpy(&sample_block[0], 	&RightRecBuff[0], 1024 * 2 * sizeof(int16_t));
 		}
+
+		AudioStream_SendRawSamples((int16_t *)&LeftRecBuff[0], FFT_SIZE);
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
 		HAL_Delay(100); // Delay for visibility
@@ -825,6 +840,41 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 		BufferCtl.offset = PCM_BUFFER_SIZE / 2;
 		BufferCtl.pcm_ptr = 0;
 	}
+}
+
+static void HandleCommand(uint8_t cmd)
+{
+    switch(cmd)
+    {
+        case CMD_START_RAW_STREAM:
+            if (stream_status.mode!=STREAM_MODE_RAW) {
+            	stream_status.mode=STREAM_MODE_RAW;
+                // Enable raw audio streaming
+            };
+            break;
+
+        case CMD_SEND_SINGLE_RAW:
+            // Send single raw audio buffer
+            // Call function to send one buffer
+ //       	AudioStream_SendFFTDataDB(db_bins_output, FFT_SIZE / 2);
+        	break;
+
+        case CMD_START_FFT_STREAM:
+        	stream_status.mode=stream_status.mode=STREAM_MODE_FFT;;
+            break;
+
+
+        case CMD_SEND_SINGLE_FFT:
+            // Send single FFT result
+            // Call function to compute and send one FFT
+ //       	AudioStream_SendFFTDataDB(db_bins_output, FFT_SIZE / 2);
+        	break;
+
+
+        default:
+  //          return RESP_NACK;  // Unknown command
+
+    }
 }
 
 /**
