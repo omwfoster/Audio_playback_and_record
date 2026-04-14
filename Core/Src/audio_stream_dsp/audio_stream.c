@@ -9,6 +9,7 @@
 #include "ai_logging.h"
 #include "string.h"
 #include "stdio.h"
+#include "stm32f7xx_hal.h"
 
 // AI Logging device
 static ai_logging_device_t ai_device;

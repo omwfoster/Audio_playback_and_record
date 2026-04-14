@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <string.h>
+#include "ai_logging.h"
 #include <audio_stream_dsp/audio_stream.h>
 #include <audio_stream_dsp/audio_stream_fft.h>
 #include <audio_stream_dsp/audio_stream_tone.h>
@@ -32,6 +33,12 @@
 /* USER CODE BEGIN PTD */
 UART_HandleTypeDef huart1;
 ALIGN_32BYTES(static AUDIO_IN_BufferTypeDef BufferCtl);
+
+
+
+
+// AI Logging
+static ai_logging_device_t ai_device;
 
 /* USER CODE END PTD */
 
@@ -156,7 +163,7 @@ int main(void) {
 		AudioStream_SendRawSamples((int16_t *)&LeftRecBuff[0], FFT_SIZE);
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
-		HAL_Delay(100); // Delay for visibility
+		//HAL_Delay(100); // Delay for visibility
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -714,6 +721,8 @@ static void MX_USART1_UART_Init(void) {
 		Error_Handler();
 	}
 	/* USER CODE BEGIN USART1_Init 2 */
+
+
 
 	/* USER CODE END USART1_Init 2 */
 

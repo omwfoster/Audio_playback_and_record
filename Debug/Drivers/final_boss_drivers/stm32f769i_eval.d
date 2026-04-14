@@ -2,7 +2,7 @@ Drivers/final_boss_drivers/stm32f769i_eval.o: \
  ../Drivers/final_boss_drivers/stm32f769i_eval.c \
  ../Drivers/final_boss_drivers/stm32f769i_eval.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h \
- ../Core/Inc/stm32f7xx_hal_conf.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/stm32f7xx_hal_conf.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_def.h \
  ../Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h \
@@ -33,7 +33,7 @@ Drivers/final_boss_drivers/stm32f769i_eval.o: \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h
 ../Drivers/final_boss_drivers/stm32f769i_eval.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h:
-../Core/Inc/stm32f7xx_hal_conf.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/stm32f7xx_hal_conf.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_def.h:
 ../Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h:

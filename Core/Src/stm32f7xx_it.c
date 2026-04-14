@@ -25,6 +25,8 @@
 /* USER CODE BEGIN Includes */
 
 
+extern UART_HandleTypeDef huart1;
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -219,6 +221,10 @@ void AUDIO_DFSDM_DMAx_LEFT_IRQHandler(void)
 void AUDIO_DFSDM_DMAx_RIGHT_IRQHandler(void)
 {
   HAL_DMA_IRQHandler(haudio_in_dfsdm_rightfilter.hdmaReg);
+}
+
+void USART1_IRQHandler(void) {
+    HAL_UART_IRQHandler(&huart1);
 }
 
 
