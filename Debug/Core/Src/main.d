@@ -1,7 +1,7 @@
 Core/Src/main.o: ../Core/Src/main.c \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/main.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/main.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/stm32f7xx_hal_conf.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/stm32f7xx_hal_conf.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_def.h \
  ../Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h \
@@ -32,14 +32,14 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h \
  /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/final_boss_audio.h \
  /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_eval.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/ai_logging.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/audio_stream_dsp/audio_stream.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/ai_logging.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream.h \
  /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/CMSIS/DSP/Include/arm_math.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/audio_stream_dsp/audio_stream_fft.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/audio_stream_dsp/audio_stream_tone.h
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/main.h:
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream_fft.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream_tone.h
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/main.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/stm32f7xx_hal_conf.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/stm32f7xx_hal_conf.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_rcc.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_def.h:
 ../Drivers/CMSIS/Device/ST/STM32F7xx/Include/stm32f7xx.h:
@@ -70,8 +70,8 @@ Core/Src/main.o: ../Core/Src/main.c \
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h:
 /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/final_boss_audio.h:
 /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_eval.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/ai_logging.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/audio_stream_dsp/audio_stream.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/ai_logging.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream.h:
 /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/CMSIS/DSP/Include/arm_math.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/audio_stream_dsp/audio_stream_fft.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Inc/audio_stream_dsp/audio_stream_tone.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream_fft.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream_tone.h:

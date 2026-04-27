@@ -32,7 +32,7 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 UART_HandleTypeDef huart1;
-ALIGN_32BYTES(static AUDIO_IN_BufferTypeDef BufferCtl);
+
 
 
 
@@ -65,12 +65,10 @@ DFSDM_Filter_HandleTypeDef DfsdmRightFilterHandle;
 DMA_HandleTypeDef hLeftDma;
 DMA_HandleTypeDef hRightDma;
 
-__attribute__((section(".dma_buffers")))
- int32_t LeftRecBuff[FFT_BLOCK_SIZE * 2];
-__attribute__((section(".dma_buffers")))
- int32_t RightRecBuff[FFT_BLOCK_SIZE * 2];
 
-int16_t sample_block[FFT_BLOCK_SIZE * 2 * sizeof(int16_t)];
+
+
+__attribute__((section(".dma_buffers")))  ALIGN_32BYTES(static AUDIO_IN_BufferTypeDef BufferCtl);
 
 extern volatile uint32_t DmaRecBuffCplt;
 extern uint32_t DmaRecHalfBuffCplt;
@@ -154,16 +152,19 @@ int main(void) {
 
 		if (DmaRecHalfBuffCplt == 1) {
 		    DmaRecHalfBuffCplt = 0;
-		    memcpy(&sample_block[0],    &LeftRecBuff[0], 1024 * 2 * sizeof(int16_t));
+		    memcpy(&sample_block[0],    &sample_block[0], 1024 * 2 * sizeof(int16_t));
 		} else if (DmaRecBuffCplt == 1) {
 		    DmaRecBuffCplt = 0;
-		    memcpy(&sample_block[0], 	&RightRecBuff[0], 1024 * 2 * sizeof(int16_t));
+		    memcpy(&sample_block[0], 	&sample_block[1024], 1024 * 2 * sizeof(int16_t));
 		}
 
-		AudioStream_SendRawSamples((int16_t *)&LeftRecBuff[0], FFT_SIZE);
+		char * str = "balls\r\n";
+		//AudioStream_SendRawSamples((int16_t *)&sample_block[0], FFT_SIZE);
+		AudioStream_SendRawSamples((int16_t *)str, 8);
+
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
-		//HAL_Delay(100); // Delay for visibility
+	//	HAL_Delay(50); // Delay for visibility
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -721,6 +722,9 @@ static void MX_USART1_UART_Init(void) {
 		Error_Handler();
 	}
 	/* USER CODE BEGIN USART1_Init 2 */
+
+	HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(USART1_IRQn);
 
 
 

@@ -52,8 +52,8 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
 	AI_RECEIVE_BUFFER_SIZE);
 
 	// ✅ Enable UART interrupt in NVIC
-	HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);  // Priority 5, sub-priority 0
-	HAL_NVIC_EnableIRQ(USART2_IRQn);
+	HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);  // Priority 5, sub-priority 0
+	HAL_NVIC_EnableIRQ(USART1_IRQn);
 
 	// ✅ Start UART RX interrupt
 	if (HAL_UART_Receive_IT(uart_handle, &ai_receive_buffer[0], 1) != HAL_OK) {
@@ -89,7 +89,7 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
  * UART send function for AI Logging
  */
 static uint32_t uart_send(uint8_t *data, uint32_t size) {
-	if (HAL_UART_Transmit(uart_handle, data, size, 100) == HAL_OK) {
+	if (HAL_UART_Transmit_IT(uart_handle, data, size) == HAL_OK) {
 		return size;
 	}
 	return 0;
