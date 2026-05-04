@@ -23,6 +23,7 @@
 #include <audio_stream_dsp/audio_stream.h>
 #include <audio_stream_dsp/audio_stream_fft.h>
 #include <audio_stream_dsp/audio_stream_tone.h>
+#include "bsp_sdram.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -38,7 +39,7 @@ UART_HandleTypeDef huart1;
 
 
 // AI Logging
-static ai_logging_device_t ai_device;
+
 
 /* USER CODE END PTD */
 
@@ -68,7 +69,8 @@ DMA_HandleTypeDef hRightDma;
 
 
 
-__attribute__((section(".dma_buffers")))  ALIGN_32BYTES(static AUDIO_IN_BufferTypeDef BufferCtl);
+extern __attribute__((section(".dma_buffers")))
+AUDIO_IN_BufferTypeDef  BufferCtl;
 
 extern volatile uint32_t DmaRecBuffCplt;
 extern uint32_t DmaRecHalfBuffCplt;
@@ -130,9 +132,18 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	BSP_SDRAM_MspInit();
+	BSP_SDRAM_Init();
 	/* USER CODE BEGIN 2 */
 	BSP_AUDIO_IN_Init(AUDIO_FREQUENCY_16K, BIT_RESOLUTION,
 	CHANNEL_NBR);
+
+	volatile uint32_t isr = DFSDM1_Filter0->FLTISR;
+	DFSDM1_Filter0->FLTICR = 0x00FF0000;
+	volatile uint32_t isr_after = DFSDM1_Filter0->FLTISR;
+	volatile uint32_t chcfg = DFSDM1_Channel0->CHCFGR1;
+
+
 	BSP_AUDIO_IN_Start_Sample();
 	MX_USART1_UART_Init();
 
@@ -151,20 +162,20 @@ int main(void) {
 
 
 		if (DmaRecHalfBuffCplt == 1) {
+			//AudioStream_SendRawSamples((int16_t *)BufferCtl.pcm_buff[0], FFT_SIZE);
 		    DmaRecHalfBuffCplt = 0;
-		    memcpy(&sample_block[0],    &sample_block[0], 1024 * 2 * sizeof(int16_t));
 		} else if (DmaRecBuffCplt == 1) {
 		    DmaRecBuffCplt = 0;
-		    memcpy(&sample_block[0], 	&sample_block[1024], 1024 * 2 * sizeof(int16_t));
+		//    AudioStream_SendRawSamples((int16_t *)BufferCtl.pcm_buff[0], FFT_SIZE);
 		}
 
-		char * str = "balls\r\n";
-		//AudioStream_SendRawSamples((int16_t *)&sample_block[0], FFT_SIZE);
-		AudioStream_SendRawSamples((int16_t *)str, 8);
+
+
+
 
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
-	//	HAL_Delay(50); // Delay for visibility
+
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -213,6 +224,21 @@ void SystemClock_Config(void) {
 	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK) {
 		Error_Handler();
 	}
+
+	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
+	PeriphClkInitStruct.PLLSAI.PLLSAIN      = 384;   /* VCO = 16MHz/8 * 384 = 768MHz */
+	PeriphClkInitStruct.PLLSAI.PLLSAIQ      = 2;
+	PeriphClkInitStruct.PLLSAIDivQ          = 8;     /* SAI clk = 768/2/8 = 48MHz ≈ 49.152MHz */
+	PeriphClkInitStruct.Sai1ClockSelection  = RCC_SAI1CLKSOURCE_PLLSAI;
+
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
+	    Error_Handler();
+	}
+
+	volatile uint32_t pllsaicfgr = RCC->PLLSAICFGR;
+	volatile uint32_t rcc_cr      = RCC->CR;
 }
 
 /**
@@ -297,13 +323,8 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-	/*Configure GPIO pins : uSD_D3_Pin uSD_D2_Pin */
-	GPIO_InitStruct.Pin = uSD_D3_Pin | uSD_D2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF10_SDMMC2;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+
 
 	/*Configure GPIO pin : CEC_Pin */
 	GPIO_InitStruct.Pin = CEC_Pin;
@@ -549,21 +570,7 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : ARD_D6_PWM_Pin */
-	GPIO_InitStruct.Pin = ARD_D6_PWM_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF3_TIM11;
-	HAL_GPIO_Init(ARD_D6_PWM_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : ARD_D3_PWM_Pin */
-	GPIO_InitStruct.Pin = ARD_D3_PWM_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	GPIO_InitStruct.Alternate = GPIO_AF3_TIM10;
-	HAL_GPIO_Init(ARD_D3_PWM_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : ARDUINO_A1_Pin ARDUINO_A2_Pin ARDUINO_A3_Pin */
 	GPIO_InitStruct.Pin = ARDUINO_A1_Pin | ARDUINO_A2_Pin | ARDUINO_A3_Pin;
@@ -804,6 +811,32 @@ void MPU_Config(void) {
 	MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
+	/* Region 4: FMC control registers — device memory, no cache */
+	MPU_InitStruct.Number           = MPU_REGION_NUMBER4;
+	MPU_InitStruct.BaseAddress      = 0xA0000000;
+	MPU_InitStruct.Size             = MPU_REGION_SIZE_8KB;
+	MPU_InitStruct.SubRegionDisable = 0x00;
+	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL0;
+	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable      = MPU_ACCESS_SHAREABLE;
+	MPU_InitStruct.IsCacheable      = MPU_ACCESS_NOT_CACHEABLE;
+	MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;   /* device memory */
+	HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+	/* Region 5: SDRAM — normal memory, write-back, write-allocate */
+	MPU_InitStruct.Number           = MPU_REGION_NUMBER5;
+	MPU_InitStruct.BaseAddress      = 0xC0000000;
+	MPU_InitStruct.Size             = MPU_REGION_SIZE_16MB;
+	MPU_InitStruct.SubRegionDisable = 0x00;
+	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;   /* write-back */
+	HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
 
 	HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
@@ -820,17 +853,11 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 	DmaRecHalfBuffCplt = 0;
 	DmaRecBuffCplt = 1;
 
-	BufferCtl.pcm_ptr += PCM_BUFFER_SIZE / 2;
-	if (BufferCtl.pcm_ptr == PCM_BUFFER_SIZE / 2) {
+
+		BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[PCM_BUFFER_SIZE / 2];
 		BufferCtl.wr_state = BUFFER_FULL;
 		BufferCtl.offset = 0;
-	}
 
-	if (BufferCtl.pcm_ptr >= PCM_BUFFER_SIZE) {
-		BufferCtl.wr_state = BUFFER_FULL;
-		BufferCtl.offset = PCM_BUFFER_SIZE / 2;
-		BufferCtl.pcm_ptr = 0;
-	}
 }
 
 /**
@@ -842,17 +869,10 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 
 	DmaRecHalfBuffCplt = 1;
 	DmaRecBuffCplt = 0;
-	BufferCtl.pcm_ptr += PCM_BUFFER_SIZE / 2;
-	if (BufferCtl.pcm_ptr == PCM_BUFFER_SIZE / 2) {
-		BufferCtl.wr_state = BUFFER_FULL;
-		BufferCtl.offset = 0;
-	}
 
-	if (BufferCtl.pcm_ptr >= PCM_BUFFER_SIZE) {
-		BufferCtl.wr_state = BUFFER_FULL;
-		BufferCtl.offset = PCM_BUFFER_SIZE / 2;
-		BufferCtl.pcm_ptr = 0;
-	}
+	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[0];
+	BufferCtl.wr_state = BUFFER_HALF;
+	BufferCtl.offset = 0;
 }
 
 static void HandleCommand(uint8_t cmd)
@@ -898,6 +918,8 @@ void Error_Handler(void) {
 	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
+	volatile uint32_t pllsaicfgr = RCC->PLLSAICFGR;
+	volatile uint32_t rcc_cr      = RCC->CR;
 	while (1) {
 	}
 	/* USER CODE END Error_Handler_Debug */

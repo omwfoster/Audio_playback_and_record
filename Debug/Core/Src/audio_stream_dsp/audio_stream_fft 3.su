@@ -1,0 +1,16 @@
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:36:6:generate_hann_window_q15	24	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:45:6:convert_pcm_for_fft	32	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:52:6:FFT_Window_Init	8	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:66:6:apply_window_q15	24	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:71:6:convert_magnitude_to_db_q15	40	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:93:6:FFT_Preprocess	48	static,ignoring_inline_asm
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:116:6:FFT_Test_Raw	24	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:137:6:FFT_Postprocess_Exponential	32	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:172:6:FFT_Postprocess_Adaptive	40	static,ignoring_inline_asm
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:213:6:FFT_Postprocess_Adaptive_dB	24	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:243:6:convert_char	32	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:253:6:FFT_Test_440Hz_Tone	8	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:266:7:calculate_threshold_fast	40	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:289:6:FFT_Adaptive_Averaging	56	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:309:7:calculate_threshold_fast_db	40	static
+../Core/Src/audio_stream_dsp/audio_stream_fft.c:332:6:FFT_Adaptive_Averaging_DB	48	static

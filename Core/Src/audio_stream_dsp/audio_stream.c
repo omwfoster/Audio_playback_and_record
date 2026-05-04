@@ -17,7 +17,7 @@ static ai_logging_device_t ai_device;
 AudioStreamStatus_t stream_status;
 
 // Buffers for AI Logging
-#define AI_SEND_BUFFER_SIZE 2048
+#define AI_SEND_BUFFER_SIZE 4096
 #define AI_RECEIVE_BUFFER_SIZE 128
 static uint8_t ai_send_buffer[AI_SEND_BUFFER_SIZE];
 static uint8_t ai_receive_buffer[AI_RECEIVE_BUFFER_SIZE];
@@ -89,8 +89,8 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
  * UART send function for AI Logging
  */
 static uint32_t uart_send(uint8_t *data, uint32_t size) {
-	if (HAL_UART_Transmit_IT(uart_handle, data, size) == HAL_OK) {
-		return size;
+	if (HAL_UART_Transmit_IT(uart_handle, data, size/2) == HAL_OK) {
+		return size/2;
 	}
 	return 0;
 }

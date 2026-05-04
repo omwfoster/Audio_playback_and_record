@@ -22,7 +22,7 @@ __attribute__((section(".dma_buffers")))
 int32_t Scratch[SCRATCH_BUFF_SIZE];
 
 __attribute__((section(".dma_buffers")))
-static AUDIO_IN_BufferTypeDef  BufferCtl;
+AUDIO_IN_BufferTypeDef  BufferCtl;
 
 __attribute__((section(".dma_buffers")))
 uint16_t raw_dma_samples[PCM_BUFFER_SIZE];
@@ -170,6 +170,8 @@ uint8_t BSP_AUDIO_IN_Init(uint32_t AudioFreq, uint32_t BitRes, uint32_t ChnlNbr)
   /* Initializes DFSDM peripheral */
   DFSDMx_Init(AudioFreq);
   
+  volatile uint32_t isr = DFSDM1_Filter0->FLTISR;
+
   /* Return AUDIO_OK when all operations are correctly done */
   return AUDIO_OK;
 }

@@ -42,7 +42,7 @@ extern "C" {
 
 
 #define FFT_BLOCK_SIZE					  512
-#define PCM_BUFFER_SIZE                   2*1024 /* buffer size in half-word */
+#define PCM_BUFFER_SIZE                   2*512*2 /* buffer size in half-word */
 #define BIT_RESOLUTION      			  ((uint8_t)16)
 #define BYES_PER_SAMPLE					  2U
 #define CHANNEL_NBR						  2U
@@ -53,13 +53,14 @@ extern "C" {
 
 typedef enum {
   BUFFER_EMPTY = 0,
+  BUFFER_HALF,
   BUFFER_FULL,
 }WR_BUFFER_StateTypeDef;
 
 
 typedef struct {
   uint16_t pcm_buff[PCM_BUFFER_SIZE];
-  uint32_t pcm_ptr;
+  uint16_t * pcm_ptr;
   WR_BUFFER_StateTypeDef wr_state;
   uint32_t offset;
   uint32_t fptr;

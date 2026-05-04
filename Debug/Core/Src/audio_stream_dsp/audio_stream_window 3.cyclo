@@ -1,0 +1,7 @@
+../Core/Src/audio_stream_dsp/audio_stream_window.c:22:6:hann_q15	3
+../Core/Src/audio_stream_dsp/audio_stream_window.c:53:6:hamming_q15	3
+../Core/Src/audio_stream_dsp/audio_stream_window.c:82:6:blackman_q15	3
+../Core/Src/audio_stream_dsp/audio_stream_window.c:119:6:blackmanharris_q15	6
+../Core/Src/audio_stream_dsp/audio_stream_window.c:155:6:rectwin_q15	2
+../Core/Src/audio_stream_dsp/audio_stream_window.c:164:6:triang_q15	3
+../Core/Src/audio_stream_dsp/audio_stream_window.c:184:6:bartlett_q15	4
