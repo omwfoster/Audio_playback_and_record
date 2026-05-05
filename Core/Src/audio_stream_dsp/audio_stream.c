@@ -64,7 +64,7 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
 	}
 
 	// Initialize status
-	stream_status.mode = STREAM_MODE_FFT;
+	stream_status.mode = STREAM_MODE_RAW;
 	stream_status.is_streaming = true;
 	stream_status.sample_rate = 16000;
 	stream_status.fft_size = FFT_SIZE;

@@ -59,8 +59,8 @@ typedef enum {
 
 
 typedef struct {
-  uint16_t pcm_buff[PCM_BUFFER_SIZE];
-  uint16_t * pcm_ptr;
+  int16_t pcm_buff[PCM_BUFFER_SIZE];
+  int16_t * pcm_ptr;
   WR_BUFFER_StateTypeDef wr_state;
   uint32_t offset;
   uint32_t fptr;

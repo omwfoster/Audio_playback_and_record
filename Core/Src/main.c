@@ -138,10 +138,7 @@ int main(void) {
 	BSP_AUDIO_IN_Init(AUDIO_FREQUENCY_16K, BIT_RESOLUTION,
 	CHANNEL_NBR);
 
-	volatile uint32_t isr = DFSDM1_Filter0->FLTISR;
-	DFSDM1_Filter0->FLTICR = 0x00FF0000;
-	volatile uint32_t isr_after = DFSDM1_Filter0->FLTISR;
-	volatile uint32_t chcfg = DFSDM1_Channel0->CHCFGR1;
+
 
 
 	BSP_AUDIO_IN_Start_Sample();
@@ -162,11 +159,11 @@ int main(void) {
 
 
 		if (DmaRecHalfBuffCplt == 1) {
-			//AudioStream_SendRawSamples((int16_t *)BufferCtl.pcm_buff[0], FFT_SIZE);
+			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[PCM_BUFFER_SIZE/2], PCM_BUFFER_SIZE/2);
 		    DmaRecHalfBuffCplt = 0;
 		} else if (DmaRecBuffCplt == 1) {
 		    DmaRecBuffCplt = 0;
-		//    AudioStream_SendRawSamples((int16_t *)BufferCtl.pcm_buff[0], FFT_SIZE);
+		    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/2);
 		}
 
 
