@@ -148,8 +148,8 @@ int main(void) {
 		}
 
 		if (DmaRecHalfBuffCplt == 1) {
-			//		AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/4);
-			uart_send((uint8_t*) str, 34);
+			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/4);
+			//uart_send((uint8_t*) str, 34);
 			DmaRecHalfBuffCplt = 0;
 		} else if (DmaRecBuffCplt == 1) {
 			DmaRecBuffCplt = 0;
