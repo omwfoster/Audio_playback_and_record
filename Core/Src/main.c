@@ -34,12 +34,9 @@
 /* USER CODE BEGIN PTD */
 UART_HandleTypeDef huart1;
 
-
-
-
-
+static uint8_t str[] __attribute__((aligned(32)))
+		= "Hello from the STM32F769I-DISCO!\r\n";
 // AI Logging
-
 
 /* USER CODE END PTD */
 
@@ -66,14 +63,12 @@ DFSDM_Filter_HandleTypeDef DfsdmRightFilterHandle;
 DMA_HandleTypeDef hLeftDma;
 DMA_HandleTypeDef hRightDma;
 
-
-
-
 extern __attribute__((section(".dma_buffers")))
-AUDIO_IN_BufferTypeDef  BufferCtl;
+ AUDIO_IN_BufferTypeDef BufferCtl;
 
 extern volatile uint32_t DmaRecBuffCplt;
-extern uint32_t DmaRecHalfBuffCplt;
+extern volatile uint32_t DmaRecHalfBuffCplt;
+DMA_HandleTypeDef hdma_usart1_tx;
 
 uint32_t PlaybackStarted = 0;
 /* Private function prototypes -----------------------------------------------*/
@@ -87,6 +82,7 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void CPU_CACHE_Enable(void);
+void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
 
@@ -113,7 +109,6 @@ int main(void) {
 	/* Enable the CPU Cache */
 	CPU_CACHE_Enable();
 
-
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -132,17 +127,13 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	BSP_SDRAM_MspInit();
 	BSP_SDRAM_Init();
 	/* USER CODE BEGIN 2 */
-	BSP_AUDIO_IN_Init(AUDIO_FREQUENCY_16K, BIT_RESOLUTION,
-	CHANNEL_NBR);
 
-
-
+	MX_DMA_Init();
+	MX_USART1_UART_Init();
 
 	BSP_AUDIO_IN_Start_Sample();
-	MX_USART1_UART_Init();
 
 	AudioStream_Init(&huart1);
 	/* USER CODE END 2 */
@@ -152,27 +143,20 @@ int main(void) {
 	while (1) {
 
 		uint8_t cmd = AudioStream_ProcessCommand();
-		if(cmd!=0)
-		{
-		HandleCommand(cmd);
+		if (cmd != 0) {
+			HandleCommand(cmd);
 		}
-
 
 		if (DmaRecHalfBuffCplt == 1) {
-			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[PCM_BUFFER_SIZE/2], PCM_BUFFER_SIZE/2);
-		    DmaRecHalfBuffCplt = 0;
+			//		AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/4);
+			uart_send((uint8_t*) str, 34);
+			DmaRecHalfBuffCplt = 0;
 		} else if (DmaRecBuffCplt == 1) {
-		    DmaRecBuffCplt = 0;
-		    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/2);
+			DmaRecBuffCplt = 0;
+			//	    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[PCM_BUFFER_SIZE/4], PCM_BUFFER_SIZE/2);
 		}
 
-
-
-
-
-
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
-
 
 		/* USER CODE BEGIN 3 */
 	}
@@ -222,20 +206,20 @@ void SystemClock_Config(void) {
 		Error_Handler();
 	}
 
-	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = { 0 };
 
 	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
-	PeriphClkInitStruct.PLLSAI.PLLSAIN      = 384;   /* VCO = 16MHz/8 * 384 = 768MHz */
-	PeriphClkInitStruct.PLLSAI.PLLSAIQ      = 2;
-	PeriphClkInitStruct.PLLSAIDivQ          = 8;     /* SAI clk = 768/2/8 = 48MHz ≈ 49.152MHz */
-	PeriphClkInitStruct.Sai1ClockSelection  = RCC_SAI1CLKSOURCE_PLLSAI;
+	PeriphClkInitStruct.PLLSAI.PLLSAIN = 384; /* VCO = 16MHz/8 * 384 = 768MHz */
+	PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
+	PeriphClkInitStruct.PLLSAIDivQ = 8; /* SAI clk = 768/2/8 = 48MHz ≈ 49.152MHz */
+	PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI;
 
 	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
-	    Error_Handler();
+		Error_Handler();
 	}
 
 	volatile uint32_t pllsaicfgr = RCC->PLLSAICFGR;
-	volatile uint32_t rcc_cr      = RCC->CR;
+	volatile uint32_t rcc_cr = RCC->CR;
 }
 
 /**
@@ -319,9 +303,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-
-
 
 	/*Configure GPIO pin : CEC_Pin */
 	GPIO_InitStruct.Pin = CEC_Pin;
@@ -567,8 +548,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-
-
 	/*Configure GPIO pins : ARDUINO_A1_Pin ARDUINO_A2_Pin ARDUINO_A3_Pin */
 	GPIO_InitStruct.Pin = ARDUINO_A1_Pin | ARDUINO_A2_Pin | ARDUINO_A3_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -730,9 +709,31 @@ static void MX_USART1_UART_Init(void) {
 	HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
 	HAL_NVIC_EnableIRQ(USART1_IRQn);
 
-
-
 	/* USER CODE END USART1_Init 2 */
+
+}
+
+void MX_DMA_Init() {
+
+
+	__HAL_RCC_DMA2_CLK_ENABLE();
+
+	hdma_usart1_tx.Instance = DMA2_Stream7;
+	hdma_usart1_tx.Init.Channel = DMA_CHANNEL_4;
+	hdma_usart1_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
+	hdma_usart1_tx.Init.PeriphInc = DMA_PINC_DISABLE;
+	hdma_usart1_tx.Init.MemInc = DMA_MINC_ENABLE;
+	hdma_usart1_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	hdma_usart1_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	hdma_usart1_tx.Init.Mode = DMA_NORMAL;
+	hdma_usart1_tx.Init.Priority = DMA_PRIORITY_LOW;
+	hdma_usart1_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+
+	HAL_DMA_Init(&hdma_usart1_tx);
+	__HAL_LINKDMA(&huart1, hdmatx, hdma_usart1_tx);
+
+	HAL_NVIC_SetPriority(DMA2_Stream7_IRQn, 6, 0);
+	HAL_NVIC_EnableIRQ(DMA2_Stream7_IRQn);
 
 }
 
@@ -781,59 +782,57 @@ void MPU_Config(void) {
 
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-
 	/* Region 2: DTCM — stack, .bss, .data */
-	MPU_InitStruct.Number           = MPU_REGION_NUMBER2;
-	MPU_InitStruct.BaseAddress      = 0x20000000;
-	MPU_InitStruct.Size             = MPU_REGION_SIZE_128KB;
+	MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+	MPU_InitStruct.BaseAddress = 0x20000000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
-	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
-	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
-	MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
+	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	/* Region 3: Flash — code */
-	MPU_InitStruct.Number           = MPU_REGION_NUMBER3;
-	MPU_InitStruct.BaseAddress      = 0x08000000;
-	MPU_InitStruct.Size             = MPU_REGION_SIZE_2MB;
+	MPU_InitStruct.Number = MPU_REGION_NUMBER3;
+	MPU_InitStruct.BaseAddress = 0x08000000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_2MB;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_ENABLE;
-	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
-	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
-	MPU_InitStruct.IsBufferable     = MPU_ACCESS_NOT_BUFFERABLE;
+	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	/* Region 4: FMC control registers — device memory, no cache */
-	MPU_InitStruct.Number           = MPU_REGION_NUMBER4;
-	MPU_InitStruct.BaseAddress      = 0xA0000000;
-	MPU_InitStruct.Size             = MPU_REGION_SIZE_8KB;
+	MPU_InitStruct.Number = MPU_REGION_NUMBER4;
+	MPU_InitStruct.BaseAddress = 0xA0000000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_8KB;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL0;
+	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
-	MPU_InitStruct.IsShareable      = MPU_ACCESS_SHAREABLE;
-	MPU_InitStruct.IsCacheable      = MPU_ACCESS_NOT_CACHEABLE;
-	MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;   /* device memory */
+	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+	MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+	MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE; /* device memory */
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	/* Region 5: SDRAM — normal memory, write-back, write-allocate */
-	MPU_InitStruct.Number           = MPU_REGION_NUMBER5;
-	MPU_InitStruct.BaseAddress      = 0xC0000000;
-	MPU_InitStruct.Size             = MPU_REGION_SIZE_16MB;
+	MPU_InitStruct.Number = MPU_REGION_NUMBER5;
+	MPU_InitStruct.BaseAddress = 0xC0000000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_16MB;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
-	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
-	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
-	MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;   /* write-back */
+	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE; /* write-back */
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
 
 	HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
@@ -850,10 +849,9 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 	DmaRecHalfBuffCplt = 0;
 	DmaRecBuffCplt = 1;
 
-
-		BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[PCM_BUFFER_SIZE / 2];
-		BufferCtl.wr_state = BUFFER_FULL;
-		BufferCtl.offset = 0;
+	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[PCM_BUFFER_SIZE / 2];
+	BufferCtl.wr_state = BUFFER_FULL;
+	BufferCtl.offset = 0;
 
 }
 
@@ -872,39 +870,37 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 	BufferCtl.offset = 0;
 }
 
-static void HandleCommand(uint8_t cmd)
-{
-    switch(cmd)
-    {
-        case CMD_START_RAW_STREAM:
-            if (stream_status.mode!=STREAM_MODE_RAW) {
-            	stream_status.mode=STREAM_MODE_RAW;
-                // Enable raw audio streaming
-            };
-            break;
+static void HandleCommand(uint8_t cmd) {
+	switch (cmd) {
+	case CMD_START_RAW_STREAM:
+		if (stream_status.mode != STREAM_MODE_RAW) {
+			stream_status.mode = STREAM_MODE_RAW;
+			// Enable raw audio streaming
+		}
+		;
+		break;
 
-        case CMD_SEND_SINGLE_RAW:
-            // Send single raw audio buffer
-            // Call function to send one buffer
- //       	AudioStream_SendFFTDataDB(db_bins_output, FFT_SIZE / 2);
-        	break;
+	case CMD_SEND_SINGLE_RAW:
+		// Send single raw audio buffer
+		// Call function to send one buffer
+		//       	AudioStream_SendFFTDataDB(db_bins_output, FFT_SIZE / 2);
+		break;
 
-        case CMD_START_FFT_STREAM:
-        	stream_status.mode=stream_status.mode=STREAM_MODE_FFT;;
-            break;
+	case CMD_START_FFT_STREAM:
+		stream_status.mode = stream_status.mode = STREAM_MODE_FFT;
+		;
+		break;
 
+	case CMD_SEND_SINGLE_FFT:
+		// Send single FFT result
+		// Call function to compute and send one FFT
+		//       	AudioStream_SendFFTDataDB(db_bins_output, FFT_SIZE / 2);
+		break;
 
-        case CMD_SEND_SINGLE_FFT:
-            // Send single FFT result
-            // Call function to compute and send one FFT
- //       	AudioStream_SendFFTDataDB(db_bins_output, FFT_SIZE / 2);
-        	break;
+	default:
+		//          return RESP_NACK;  // Unknown command
 
-
-        default:
-  //          return RESP_NACK;  // Unknown command
-
-    }
+	}
 }
 
 /**
@@ -916,7 +912,7 @@ void Error_Handler(void) {
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	volatile uint32_t pllsaicfgr = RCC->PLLSAICFGR;
-	volatile uint32_t rcc_cr      = RCC->CR;
+	volatile uint32_t rcc_cr = RCC->CR;
 	while (1) {
 	}
 	/* USER CODE END Error_Handler_Debug */

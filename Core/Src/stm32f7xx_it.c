@@ -228,4 +228,12 @@ void USART1_IRQHandler(void) {
 }
 
 
+extern DMA_HandleTypeDef hdma_usart1_tx;
+
+void DMA2_Stream7_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(&hdma_usart1_tx);
+}
+
+
 /* USER CODE END 1 */

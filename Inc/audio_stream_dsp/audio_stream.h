@@ -61,6 +61,7 @@ int AudioStream_ProcessCommand(void);
 stream_mode_t AudioStream_GetMode(void);
 bool AudioStream_IsStreaming(void);
 void AudioStream_Task(void);
+uint32_t uart_send(uint8_t *data, uint32_t size);
 
 #ifdef __cplusplus
 }

@@ -17,9 +17,9 @@ static ai_logging_device_t ai_device;
 AudioStreamStatus_t stream_status;
 
 // Buffers for AI Logging
-#define AI_SEND_BUFFER_SIZE 4096
+#define AI_SEND_BUFFER_SIZE 2048
 #define AI_RECEIVE_BUFFER_SIZE 128
-static uint8_t ai_send_buffer[AI_SEND_BUFFER_SIZE];
+static __attribute__((aligned(32))) uint8_t ai_send_buffer[AI_SEND_BUFFER_SIZE];
 static uint8_t ai_receive_buffer[AI_RECEIVE_BUFFER_SIZE];
 
 // Global variables
@@ -31,7 +31,7 @@ static volatile bool packet_parsing = false;
 static UART_HandleTypeDef *uart_handle;
 
 // Forward declarations
-static uint32_t uart_send(uint8_t *data, uint32_t size);
+
 static void process_command_packet(ai_logging_packet_t *packet);
 static void send_ack(uint8_t cmd);
 static void send_nack(uint8_t cmd);
@@ -75,7 +75,7 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
 	ai_logging_packet_t startup_packet;
 	ai_logging_clear_packet(&startup_packet);
 
-	char msg[] = "Audio Streaming Ready";
+	static const char msg[] = "Audio Streaming Ready";
 	startup_packet.payload_type = AI_STR;
 	startup_packet.payload = (uint8_t*) msg;
 	startup_packet.payload_size = strlen(msg);
@@ -88,11 +88,35 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
 /**
  * UART send function for AI Logging
  */
-static uint32_t uart_send(uint8_t *data, uint32_t size) {
-	if (HAL_UART_Transmit_IT(uart_handle, data, size/2) == HAL_OK) {
-		return size/2;
-	}
-	return 0;
+static uint8_t uart_tx_busy = 0;
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1) {
+        uart_tx_busy = 0;
+    }
+}
+
+uint32_t uart_send(uint8_t *data, uint32_t size)
+{
+    if (uart_tx_busy) {
+        return 0;  /* previous transfer still in flight */
+    }
+
+    /* Only clean D-Cache for SRAM addresses (not Flash) */
+    uint32_t addr = (uint32_t)data;
+    if (addr >= 0x20000000 && addr < 0x60000000) {
+        /* Round down to 32-byte cache line boundary */
+        uint32_t aligned_addr = addr & ~0x1F;
+        uint32_t aligned_size = size + (addr - aligned_addr);
+        SCB_CleanDCache_by_Addr((uint32_t *)aligned_addr, aligned_size);
+    }
+
+    if (HAL_UART_Transmit_DMA(uart_handle, data, size) == HAL_OK) {
+        uart_tx_busy = 1;
+        return size;
+    }
+    return 0;
 }
 
 /**

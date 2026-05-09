@@ -1,0 +1,17 @@
+../Drivers/CMSIS/Include/core_cm7.h:2491:22:SCB_CleanDCache_by_Addr	32	static,ignoring_inline_asm
+../Core/Src/audio_stream_dsp/audio_stream.c:42:6:AudioStream_Init	104	static
+../Core/Src/audio_stream_dsp/audio_stream.c:93:6:HAL_UART_TxCpltCallback	16	static
+../Core/Src/audio_stream_dsp/audio_stream.c:100:17:uart_send	16	static
+../Core/Src/audio_stream_dsp/audio_stream.c:119:5:AudioStream_ProcessCommand	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:145:13:process_command_packet	24	static
+../Core/Src/audio_stream_dsp/audio_stream.c:226:13:send_ack	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:247:13:send_nack	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:265:6:HAL_UART_RxCpltCallback	16	static
+../Core/Src/audio_stream_dsp/audio_stream.c:279:6:AudioStream_SendRawSamples	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:318:6:AudioStream_SendFFTData	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:357:6:AudioStream_SendStatus	56	static
+../Core/Src/audio_stream_dsp/audio_stream.c:399:6:AudioStream_SendFFTDataDB	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:437:6:AudioStream_SendSpectrogram	64	static
+../Core/Src/audio_stream_dsp/audio_stream.c:466:6:AudioStream_Task	8	static
+../Core/Src/audio_stream_dsp/audio_stream.c:473:15:AudioStream_GetMode	4	static
+../Core/Src/audio_stream_dsp/audio_stream.c:480:6:AudioStream_IsStreaming	4	static
