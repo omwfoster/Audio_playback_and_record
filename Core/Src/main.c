@@ -54,7 +54,7 @@ static uint8_t str[] __attribute__((aligned(32)))
 
 /* USER CODE BEGIN PV */
 
-#define SaturaLH(N, L, H) (((N)<(L))?(L):(((N)>(H))?(H):(N)))
+
 /* Private variables ---------------------------------------------------------*/
 DFSDM_Channel_HandleTypeDef DfsdmLeftChannelHandle;
 DFSDM_Channel_HandleTypeDef DfsdmRightChannelHandle;
@@ -148,12 +148,12 @@ int main(void) {
 		}
 
 		if (DmaRecHalfBuffCplt == 1) {
-			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/4);
+			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE);
 			//uart_send((uint8_t*) str, 34);
 			DmaRecHalfBuffCplt = 0;
 		} else if (DmaRecBuffCplt == 1) {
 			DmaRecBuffCplt = 0;
-			//	    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[PCM_BUFFER_SIZE/4], PCM_BUFFER_SIZE/2);
+		    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[((PCM_BUFFER_SIZE/2))], PCM_BUFFER_SIZE/2);
 		}
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED

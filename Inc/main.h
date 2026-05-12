@@ -41,8 +41,8 @@ extern "C" {
 
 
 
-#define FFT_BLOCK_SIZE					  512
-#define PCM_BUFFER_SIZE                   2*512*2 /* buffer size in half-word */
+#define FFT_BLOCK_SIZE					  128
+#define PCM_BUFFER_SIZE                   2*FFT_BLOCK_SIZE*2 /* buffer size in half-word */
 #define BIT_RESOLUTION      			  ((uint8_t)16)
 #define BYES_PER_SAMPLE					  2U
 #define CHANNEL_NBR						  2U

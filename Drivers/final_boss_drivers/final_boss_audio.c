@@ -16,7 +16,10 @@ typedef struct
 }AUDIOIN_TypeDef;
 
 
-#define SCRATCH_BUFF_SIZE  512
+
+
+
+#define SCRATCH_BUFF_SIZE  PCM_BUFFER_SIZE
 
 __attribute__((section(".dma_buffers")))
 int32_t Scratch[SCRATCH_BUFF_SIZE];
@@ -25,7 +28,7 @@ __attribute__((section(".dma_buffers")))
 AUDIO_IN_BufferTypeDef  BufferCtl;
 
 __attribute__((section(".dma_buffers")))
-uint16_t raw_dma_samples[PCM_BUFFER_SIZE];
+int16_t raw_dma_samples[PCM_BUFFER_SIZE];
 
 static __IO uint32_t uwVolume = 100;
 
@@ -59,6 +62,8 @@ static __IO uint32_t uwVolume = 100;
       : (__FREQUENCY__ == AUDIO_FREQUENCY_44K) ? DFSDM_FILTER_SINC3_ORDER  \
       : (__FREQUENCY__ == AUDIO_FREQUENCY_48K) ? DFSDM_FILTER_SINC3_ORDER : DFSDM_FILTER_SINC5_ORDER  \
 
+
+/*changed from 8 to 3 to avoid saturation of PCM samples with 16KHz frequency */
 #define DFSDM_RIGHT_BIT_SHIFT(__FREQUENCY__) \
         (__FREQUENCY__ == AUDIO_FREQUENCY_8K)  ? 8 \
       : (__FREQUENCY__ == AUDIO_FREQUENCY_11K) ? 8 \
@@ -318,6 +323,11 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
   uint32_t index = 0;
 
 
+  // Invalidate second half
+  SCB_InvalidateDCache_by_Addr((uint32_t *)pScratchBuff[0], ScratchSize * 2);
+  SCB_InvalidateDCache_by_Addr((uint32_t *)pScratchBuff[1], ScratchSize * 2);
+
+
 
     for(index = (ScratchSize/2) ; index < ScratchSize; index++)
     {
@@ -353,6 +363,9 @@ void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_
 {
   uint32_t index = 0;
 
+  // Invalidate first half of scratch — DMA just wrote it
+  SCB_InvalidateDCache_by_Addr((uint32_t *)pScratchBuff[0], ScratchSize * 2);
+  SCB_InvalidateDCache_by_Addr((uint32_t *)pScratchBuff[1], ScratchSize * 2);
 
 
       for(index = 0; index < ScratchSize/2; index++)
@@ -380,37 +393,6 @@ void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_
   }  
 }
 
-/**
-  * @brief  User callback when record buffer is filled.
-  * @retval None
-  */
-__weak void BSP_AUDIO_IN_TransferComplete_CallBack(void)
-{
-  /* This function should be implemented by the user application.
-     It is called into this driver when the current buffer is filled
-     to prepare the next buffer pointer and its size. */
-}
-
-/**
-  * @brief  Manages the DMA Half Transfer complete event.
-  * @retval None
-  */
-__weak void BSP_AUDIO_IN_HalfTransfer_CallBack(void)
-{ 
-  /* This function should be implemented by the user application.
-     It is called into this driver when the current buffer is filled
-     to prepare the next buffer pointer and its size. */
-}
-
-/**
-  * @brief  Audio IN Error callback function.
-  * @retval None
-  */
-__weak void BSP_AUDIO_IN_Error_Callback(void)
-{   
-  /* This function is called when an Interrupt due to transfer error on or peripheral
-     error occurs. */
-}
 
 /**
   * @brief  Initialize BSP_AUDIO_IN MSP.

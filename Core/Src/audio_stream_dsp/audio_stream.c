@@ -17,7 +17,7 @@ static ai_logging_device_t ai_device;
 AudioStreamStatus_t stream_status;
 
 // Buffers for AI Logging
-#define AI_SEND_BUFFER_SIZE 2048
+#define AI_SEND_BUFFER_SIZE 1048
 #define AI_RECEIVE_BUFFER_SIZE 128
 static __attribute__((aligned(32))) uint8_t ai_send_buffer[AI_SEND_BUFFER_SIZE];
 static uint8_t ai_receive_buffer[AI_RECEIVE_BUFFER_SIZE];
