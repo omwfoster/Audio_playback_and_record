@@ -66,8 +66,8 @@ DMA_HandleTypeDef hRightDma;
 extern __attribute__((section(".dma_buffers")))
  AUDIO_IN_BufferTypeDef BufferCtl;
 
-extern volatile uint32_t DmaRecBuffCplt;
-extern volatile uint32_t DmaRecHalfBuffCplt;
+volatile uint32_t DmaTopLeftRecHalfCplt;
+volatile uint32_t DmaTopLeftRecCplt;
 DMA_HandleTypeDef hdma_usart1_tx;
 
 uint32_t PlaybackStarted = 0;
@@ -133,9 +133,11 @@ int main(void) {
 	MX_DMA_Init();
 	MX_USART1_UART_Init();
 
-	BSP_AUDIO_IN_Start_Sample();
+
 
 	AudioStream_Init(&huart1);
+
+	BSP_AUDIO_IN_Start_Sample();
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -147,12 +149,12 @@ int main(void) {
 			HandleCommand(cmd);
 		}
 
-		if (DmaRecHalfBuffCplt == 1) {
+		if (DmaTopLeftRecHalfCplt == 1) {
 			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE);
 			//uart_send((uint8_t*) str, 34);
-			DmaRecHalfBuffCplt = 0;
-		} else if (DmaRecBuffCplt == 1) {
-			DmaRecBuffCplt = 0;
+			DmaTopLeftRecHalfCplt = 0;
+		} else if (DmaTopLeftRecHalfCplt == 1) {
+			DmaTopLeftRecHalfCplt = 0;
 		    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[((PCM_BUFFER_SIZE/2))], PCM_BUFFER_SIZE/2);
 		}
 
@@ -846,8 +848,8 @@ void MPU_Config(void) {
 
 void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
-	DmaRecHalfBuffCplt = 0;
-	DmaRecBuffCplt = 1;
+	DmaTopLeftRecHalfCplt = 0;
+	DmaTopLeftRecHalfCplt = 1;
 
 	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[PCM_BUFFER_SIZE / 2];
 	BufferCtl.wr_state = BUFFER_FULL;
@@ -862,8 +864,8 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
  */
 void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 
-	DmaRecHalfBuffCplt = 1;
-	DmaRecBuffCplt = 0;
+	DmaTopLeftRecHalfCplt = 1;
+	DmaTopLeftRecHalfCplt = 0;
 
 	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[0];
 	BufferCtl.wr_state = BUFFER_HALF;

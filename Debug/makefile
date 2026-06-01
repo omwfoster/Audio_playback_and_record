@@ -11,6 +11,11 @@ RM := rm -rf
 -include sources.mk
 -include Drivers/final_boss_drivers/subdir.mk
 -include Drivers/STM32F7xx_HAL_Driver/Src/subdir.mk
+-include Drivers/Components/wm8994/subdir.mk
+-include Drivers/Components/otm8009a/subdir.mk
+-include Drivers/Components/nt35510/subdir.mk
+-include Drivers/Components/ft6x06/subdir.mk
+-include Drivers/Components/adv7533/subdir.mk
 -include Drivers/CMSIS/DSP/Source/TransformFunctions/subdir.mk
 -include Drivers/CMSIS/DSP/Source/SupportFunctions/subdir.mk
 -include Drivers/CMSIS/DSP/Source/StatisticsFunctions/subdir.mk

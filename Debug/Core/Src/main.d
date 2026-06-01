@@ -33,8 +33,11 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h \
  ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/final_boss_audio.h \
- /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_eval.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_discovery.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_discovery_audio.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Components/wm8994/wm8994.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Components/wm8994/../Common/audio.h \
+ /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_discovery.h \
  /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/ai_logging.h \
  /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream.h \
  /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/CMSIS/DSP/Include/arm_math.h \
@@ -75,8 +78,11 @@ Core/Src/main.o: ../Core/Src/main.c \
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_uart_ex.h:
 ../Drivers/STM32F7xx_HAL_Driver/Inc/stm32f7xx_hal_dfsdm.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/final_boss_audio.h:
-/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_eval.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_discovery.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_discovery_audio.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Components/wm8994/wm8994.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/Components/wm8994/../Common/audio.h:
+/Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/final_boss_drivers/stm32f769i_discovery.h:
 /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/ai_logging.h:
 /Users/oliverfoster/Documents/carrion/audio_final_boss/Inc/audio_stream_dsp/audio_stream.h:
 /Users/oliverfoster/Documents/carrion/audio_final_boss/Drivers/CMSIS/DSP/Include/arm_math.h:

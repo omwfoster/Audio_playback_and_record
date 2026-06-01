@@ -35,6 +35,11 @@ Drivers/CMSIS/DSP/Source/MatrixFunctions \
 Drivers/CMSIS/DSP/Source/StatisticsFunctions \
 Drivers/CMSIS/DSP/Source/SupportFunctions \
 Drivers/CMSIS/DSP/Source/TransformFunctions \
+Drivers/Components/adv7533 \
+Drivers/Components/ft6x06 \
+Drivers/Components/nt35510 \
+Drivers/Components/otm8009a \
+Drivers/Components/wm8994 \
 Drivers/STM32F7xx_HAL_Driver/Src \
 Drivers/final_boss_drivers \
 

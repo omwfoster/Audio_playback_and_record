@@ -32,7 +32,8 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "final_boss_audio.h"
+#include "stm32f769i_discovery.h"
+#include "stm32f769i_discovery_audio.h"
 
 /* USER CODE END Includes */
 
@@ -59,8 +60,8 @@ typedef enum {
 
 
 typedef struct {
-  int16_t pcm_buff[PCM_BUFFER_SIZE];
-  int16_t * pcm_ptr;
+  uint16_t pcm_buff[PCM_BUFFER_SIZE];
+  uint16_t * pcm_ptr;
   WR_BUFFER_StateTypeDef wr_state;
   uint32_t offset;
   uint32_t fptr;

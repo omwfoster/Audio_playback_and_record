@@ -282,7 +282,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 /**
  * Send raw audio samples to PC using packet structure
  */
-void AudioStream_SendRawSamples(int16_t *samples, uint16_t num_samples) {
+void AudioStream_SendRawSamples(uint16_t *samples, uint16_t num_samples) {
 	if (!stream_status.is_streaming && stream_status.mode != STREAM_MODE_RAW) {
 		return;
 	}
@@ -297,7 +297,7 @@ void AudioStream_SendRawSamples(int16_t *samples, uint16_t num_samples) {
 	data_packet.message_size = strlen(msg);
 
 // Set payload
-	data_packet.payload_type = AI_INT16;
+	data_packet.payload_type = AI_UINT16;
 	data_packet.payload = (uint8_t*) samples;
 	data_packet.payload_size = num_samples * sizeof(int16_t);
 

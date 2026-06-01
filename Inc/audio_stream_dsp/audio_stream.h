@@ -52,7 +52,7 @@ extern AudioStreamStatus_t stream_status;
 
 // Function prototypes
 void AudioStream_Init(UART_HandleTypeDef *huart);
-void AudioStream_SendRawSamples(int16_t *samples, uint16_t num_samples);
+void AudioStream_SendRawSamples(uint16_t *samples, uint16_t num_samples);
 void AudioStream_SendFFTData(int16_t *fft_magnitude, uint16_t fft_size);
 void AudioStream_SendFFTDataDB(q15_t *fft_magnitude_db, uint16_t fft_size);
 void AudioStream_SendSpectrogram(q15_t *spectrogram_data, uint16_t num_frames, uint16_t fft_size);
