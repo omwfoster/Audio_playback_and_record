@@ -234,19 +234,31 @@ AUDIO_DrvTypeDef                *audio_drv;
 
 /* RECORD */
 AUDIOIN_TypeDef                 hAudioIn;
-
+__attribute__((section(".non_cached_ram")))
 DFSDM_Channel_HandleTypeDef     hAudioInTopLeftChannel;
+__attribute__((section(".non_cached_ram")))
 DFSDM_Channel_HandleTypeDef     hAudioInTopRightChannel;
+__attribute__((section(".non_cached_ram")))
 DFSDM_Filter_HandleTypeDef      hAudioInTopLeftFilter;
+__attribute__((section(".non_cached_ram")))
 DFSDM_Filter_HandleTypeDef      hAudioInTopRightFilter;
+__attribute__((section(".non_cached_ram")))
 DMA_HandleTypeDef               hDmaTopLeft;
+__attribute__((section(".non_cached_ram")))
 DMA_HandleTypeDef               hDmaTopRight;
 
+
+__attribute__((section(".non_cached_ram")))
 DFSDM_Channel_HandleTypeDef     hAudioInButtomLeftChannel;
+__attribute__((section(".non_cached_ram")))
 DFSDM_Channel_HandleTypeDef     hAudioInButtomRightChannel;
+__attribute__((section(".non_cached_ram")))
 DFSDM_Filter_HandleTypeDef      hAudioInButtomLeftFilter;
+__attribute__((section(".non_cached_ram")))
 DFSDM_Filter_HandleTypeDef      hAudioInButtomRightFilter;
+__attribute__((section(".non_cached_ram")))
 DMA_HandleTypeDef               hDmaButtomLeft;
+__attribute__((section(".non_cached_ram")))
 DMA_HandleTypeDef               hDmaButtomRight;
 
 /* Buffers for right and left samples */
@@ -1318,6 +1330,7 @@ static void DFSDMx_FilterMspDeInit(void)
     HAL_DMA_DeInit(&hDmaButtomRight);
   }  
 }
+
 
 /**
   * @}

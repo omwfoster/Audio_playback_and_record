@@ -60,11 +60,11 @@
 #define HAL_RCC_MODULE_ENABLED
 /* #define HAL_RNG_MODULE_ENABLED    */
 /* #define HAL_RTC_MODULE_ENABLED */
-/* #define HAL_SAI_MODULE_ENABLED */
+#define HAL_SAI_MODULE_ENABLED
 /* #define HAL_SD_MODULE_ENABLED   */
 /* #define HAL_SPDIFRX_MODULE_ENABLED */
 /* #define HAL_SPI_MODULE_ENABLED    */
-/* #define HAL_TIM_MODULE_ENABLED    */
+#define HAL_TIM_MODULE_ENABLED
 #define HAL_UART_MODULE_ENABLED
 /* #define HAL_USART_MODULE_ENABLED  */
 /* #define HAL_IRDA_MODULE_ENABLED  */
@@ -149,7 +149,7 @@
 #define  USE_HAL_CRYP_REGISTER_CALLBACKS        0U /* CRYP register callback disabled      */
 #define  USE_HAL_DAC_REGISTER_CALLBACKS         0U /* DAC register callback disabled       */
 #define  USE_HAL_DCMI_REGISTER_CALLBACKS        0U /* DCMI register callback disabled      */
-#define  USE_HAL_DFSDM_REGISTER_CALLBACKS       1U /* DFSDM register callback disabled     */
+#define  USE_HAL_DFSDM_REGISTER_CALLBACKS       0U /* DFSDM register callback disabled     */
 #define  USE_HAL_DMA2D_REGISTER_CALLBACKS       0U /* DMA2D register callback disabled     */
 #define  USE_HAL_DSI_REGISTER_CALLBACKS         0U /* DSI register callback disabled       */
 #define  USE_HAL_ETH_REGISTER_CALLBACKS         0U /* ETH register callback disabled       */
@@ -178,7 +178,7 @@
 #define  USE_HAL_SMBUS_REGISTER_CALLBACKS       0U /* SMBUS register callback disabled     */
 #define  USE_HAL_SPI_REGISTER_CALLBACKS         0U /* SPI register callback disabled       */
 #define  USE_HAL_TIM_REGISTER_CALLBACKS         0U /* TIM register callback disabled       */
-#define  USE_HAL_UART_REGISTER_CALLBACKS        1U /* UART register callback disabled      */
+#define  USE_HAL_UART_REGISTER_CALLBACKS        0U /* UART register callback disabled      */
 #define  USE_HAL_USART_REGISTER_CALLBACKS       0U /* USART register callback disabled     */
 #define  USE_HAL_WWDG_REGISTER_CALLBACKS        0U /* WWDG register callback disabled      */
 

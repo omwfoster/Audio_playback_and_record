@@ -161,24 +161,33 @@ SECTIONS
   . = ALIGN(4);
   .bss :
   {
-    /* This is used by the startup in order to initialize the .bss section */
-    _sbss = .;         /* define a global symbol at bss start */
+    _sbss = .;
     __bss_start__ = _sbss;
     *(.bss)
     *(.bss*)
     *(COMMON)
-
     . = ALIGN(4);
-    _ebss = .;         /* define a global symbol at bss end */
+    _ebss = .;
     __bss_end__ = _ebss;
   } >DTCM
-  
-      .dma_buffers (NOLOAD) :
+
+  /* Reset location counter to SRAM1 origin */
+  .dma_buffers (NOLOAD) :
   {
+    . = ALIGN(4);
     _dma_buffers_start = .;
     *(.dma_buffers)
     . = ALIGN(4);
     _dma_buffers_end = .;
+  } >SRAM1
+
+  .non_cached_ram (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _non_cached_ram_start = .;
+    *(.non_cached_ram)
+    . = ALIGN(4);
+    _non_cached_ram_end = .;
   } >SRAM1
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */

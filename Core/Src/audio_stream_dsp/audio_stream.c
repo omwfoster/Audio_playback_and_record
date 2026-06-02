@@ -126,6 +126,8 @@ int AudioStream_ProcessCommand(void) {
 	ai_logging_packet_t packet;
 	ai_logging_clear_packet(&packet);
 
+
+
 	int result = ai_logging_check_for_received_packet(&ai_device, &packet);
 
 	if (result == AI_PACKET_OK) {

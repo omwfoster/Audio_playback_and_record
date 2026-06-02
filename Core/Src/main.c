@@ -56,18 +56,15 @@ static uint8_t str[] __attribute__((aligned(32)))
 
 
 /* Private variables ---------------------------------------------------------*/
-DFSDM_Channel_HandleTypeDef DfsdmLeftChannelHandle;
-DFSDM_Channel_HandleTypeDef DfsdmRightChannelHandle;
-DFSDM_Filter_HandleTypeDef DfsdmLeftFilterHandle;
-DFSDM_Filter_HandleTypeDef DfsdmRightFilterHandle;
-DMA_HandleTypeDef hLeftDma;
-DMA_HandleTypeDef hRightDma;
+
 
 extern __attribute__((section(".dma_buffers")))
  AUDIO_IN_BufferTypeDef BufferCtl;
 
 volatile uint32_t DmaTopLeftRecHalfCplt;
 volatile uint32_t DmaTopLeftRecCplt;
+volatile uint32_t DmaTopRighRecHalfCplt;
+volatile uint32_t DmaTopRightRecCplt;
 DMA_HandleTypeDef hdma_usart1_tx;
 
 uint32_t PlaybackStarted = 0;
@@ -150,11 +147,11 @@ int main(void) {
 		}
 
 		if (DmaTopLeftRecHalfCplt == 1) {
-			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE);
+			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/2);
 			//uart_send((uint8_t*) str, 34);
 			DmaTopLeftRecHalfCplt = 0;
-		} else if (DmaTopLeftRecHalfCplt == 1) {
-			DmaTopLeftRecHalfCplt = 0;
+		} else if (DmaTopLeftRecCplt == 1) {
+			DmaTopLeftRecCplt = 0;
 		    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[((PCM_BUFFER_SIZE/2))], PCM_BUFFER_SIZE/2);
 		}
 
@@ -770,18 +767,17 @@ void MPU_Config(void) {
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 	/* Enables the MPU */
 
-	MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-	MPU_InitStruct.BaseAddress = 0x20020000;
-	MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
+	MPU_InitStruct.Number       = MPU_REGION_NUMBER1;
+	MPU_InitStruct.BaseAddress  = 0x20020000;
+	MPU_InitStruct.Size         = MPU_REGION_SIZE_512KB;  // was 32KB
 	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-	MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+	MPU_InitStruct.IsCacheable  = MPU_ACCESS_NOT_CACHEABLE;
 	MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsShareable  = MPU_ACCESS_NOT_SHAREABLE;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.DisableExec  = MPU_INSTRUCTION_ACCESS_DISABLE;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-
+	MPU_InitStruct.Enable       = MPU_REGION_ENABLE;
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	/* Region 2: DTCM — stack, .bss, .data */
@@ -848,8 +844,8 @@ void MPU_Config(void) {
 
 void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
+	DmaTopLeftRecCplt = 1;
 	DmaTopLeftRecHalfCplt = 0;
-	DmaTopLeftRecHalfCplt = 1;
 
 	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[PCM_BUFFER_SIZE / 2];
 	BufferCtl.wr_state = BUFFER_FULL;
@@ -864,8 +860,8 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
  */
 void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 
+	DmaTopLeftRecCplt = 0;
 	DmaTopLeftRecHalfCplt = 1;
-	DmaTopLeftRecHalfCplt = 0;
 
 	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[0];
 	BufferCtl.wr_state = BUFFER_HALF;
@@ -919,6 +915,23 @@ void Error_Handler(void) {
 	}
 	/* USER CODE END Error_Handler_Debug */
 }
+
+
+void Default_Handler_C(void)
+{
+    volatile uint32_t ipsr = __get_IPSR();        // which IRQ
+    volatile uint32_t cfsr = SCB->CFSR;           // fault status
+    volatile uint32_t hfsr = SCB->HFSR;
+    (void)ipsr; (void)cfsr; (void)hfsr;
+    __BKPT(0);
+}
+
+
+
+
+
+
+
 #ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number

@@ -62,8 +62,33 @@ extern UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN EV */
 
-extern DFSDM_Filter_HandleTypeDef       haudio_in_dfsdm_leftfilter;
-extern DFSDM_Filter_HandleTypeDef       haudio_in_dfsdm_rightfilter;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Channel_HandleTypeDef     hAudioInTopLeftChannel;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Channel_HandleTypeDef     hAudioInTopRightChannel;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Filter_HandleTypeDef      hAudioInTopLeftFilter;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Filter_HandleTypeDef      hAudioInTopRightFilter;
+__attribute__((section(".non_cached_ram")))
+extern DMA_HandleTypeDef               hDmaTopLeft;
+__attribute__((section(".non_cached_ram")))
+extern DMA_HandleTypeDef               hDmaTopRight;
+
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Channel_HandleTypeDef     hAudioInButtomLeftChannel;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Channel_HandleTypeDef     hAudioInButtomRightChannel;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Filter_HandleTypeDef      hAudioInButtomLeftFilter;
+__attribute__((section(".non_cached_ram")))
+extern DFSDM_Filter_HandleTypeDef      hAudioInButtomRightFilter;
+__attribute__((section(".non_cached_ram")))
+extern DMA_HandleTypeDef               hDmaButtomLeft;
+__attribute__((section(".non_cached_ram")))
+extern DMA_HandleTypeDef               hDmaButtomRight;
+
+extern UART_HandleTypeDef huart1;
 
 /* USER CODE END EV */
 
@@ -207,25 +232,30 @@ void SysTick_Handler(void)
 
 /* USER CODE BEGIN 1 */
 
-void AUDIO_DFSDM_DMAx_LEFT_IRQHandler(void)
-{
-  HAL_DMA_IRQHandler(haudio_in_dfsdm_leftfilter.hdmaReg);
-}
 
-/**
-  * @brief This function handles DMA2 Stream 0 interrupt request.
-  * @param None
-  * @retval None
-  */
-void AUDIO_DFSDM_DMAx_RIGHT_IRQHandler(void)
-{
-  HAL_DMA_IRQHandler(haudio_in_dfsdm_rightfilter.hdmaReg);
-}
 
 void USART1_IRQHandler(void) {
     HAL_UART_IRQHandler(&huart1);
 }
 
+
+void USARTx_DMA_TX_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(huart1.hdmatx);
+}
+
+
+/**
+  * @brief  This function handles UART interrupt request.
+  * @param  None
+  * @retval None
+  * @Note   This function is redefined in "main.h" and related to DMA
+  *         used for USART data transmission
+  */
+void USARTx_IRQHandler(void)
+{
+  HAL_UART_IRQHandler(&huart1);
+}
 
 extern DMA_HandleTypeDef hdma_usart1_tx;
 
@@ -233,6 +263,29 @@ void DMA2_Stream7_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&hdma_usart1_tx);
 }
+
+
+void DMA2_Stream0_IRQHandler(void)
+{
+
+    HAL_DMA_IRQHandler(hAudioInTopLeftFilter.hdmaReg);
+
+}
+
+/**
+  * @brief  This function handles DMA2 Stream 5 interrupt request.
+  * @param  None
+  * @retval None
+  */
+void DMA2_Stream5_IRQHandler(void)
+{
+
+   HAL_DMA_IRQHandler(hAudioInTopRightFilter.hdmaReg);
+
+}
+
+
+
 
 
 /* USER CODE END 1 */
