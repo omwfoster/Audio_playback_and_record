@@ -160,7 +160,7 @@ typedef struct
 
 
 
-#define SCRATCH_BUFF_SIZE  PCM_BUFFER_SIZE
+#define SCRATCH_BUFF_SIZE  PCM_BUFFER_SIZE * 2
 
 __attribute__((section(".dma_buffers")))
 int32_t Scratch[SCRATCH_BUFF_SIZE];

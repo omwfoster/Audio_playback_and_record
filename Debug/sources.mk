@@ -40,6 +40,8 @@ Drivers/Components/ft6x06 \
 Drivers/Components/nt35510 \
 Drivers/Components/otm8009a \
 Drivers/Components/wm8994 \
+Drivers/FatFs-main/ffsystem \
+Drivers/FatFs-main/src \
 Drivers/STM32F7xx_HAL_Driver/Src \
 Drivers/final_boss_drivers \
 

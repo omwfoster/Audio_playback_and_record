@@ -11,6 +11,8 @@ RM := rm -rf
 -include sources.mk
 -include Drivers/final_boss_drivers/subdir.mk
 -include Drivers/STM32F7xx_HAL_Driver/Src/subdir.mk
+-include Drivers/FatFs-main/src/subdir.mk
+-include Drivers/FatFs-main/ffsystem/subdir.mk
 -include Drivers/Components/wm8994/subdir.mk
 -include Drivers/Components/otm8009a/subdir.mk
 -include Drivers/Components/nt35510/subdir.mk

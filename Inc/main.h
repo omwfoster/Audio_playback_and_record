@@ -34,6 +34,12 @@ extern "C" {
 
 #include "stm32f769i_discovery.h"
 #include "stm32f769i_discovery_audio.h"
+#include "stm32f769i_discovery_sd.h"
+#include "stm32f769i_discovery_ts.h"
+#include "lcd_log.h"
+#include "ff.h"
+#include "ff_gen_drv.h"
+#include "sd_diskio.h"
 
 /* USER CODE END Includes */
 
@@ -43,7 +49,7 @@ extern "C" {
 
 
 #define FFT_BLOCK_SIZE					  128
-#define PCM_BUFFER_SIZE                   2*FFT_BLOCK_SIZE*2 /* buffer size in half-word */
+#define PCM_BUFFER_SIZE                   ((uint32_t)512)
 #define BIT_RESOLUTION      			  ((uint8_t)16)
 #define BYES_PER_SAMPLE					  2U
 #define CHANNEL_NBR						  2U

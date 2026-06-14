@@ -10,6 +10,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "stm32f7xx_hal.h"
+#include "main.h"
 
 // AI Logging device
 static ai_logging_device_t ai_device;
@@ -281,43 +282,38 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	}
 }
 
-/**
- * Send raw audio samples to PC using packet structure
- */
+__attribute__((section(".dma_buffers")))
+static uint16_t uart_tx_audio_buf[PCM_BUFFER_SIZE];
+
 void AudioStream_SendRawSamples(uint16_t *samples, uint16_t num_samples) {
-	if (!stream_status.is_streaming && stream_status.mode != STREAM_MODE_RAW) {
-		return;
-	}
+    if (!stream_status.is_streaming && stream_status.mode != STREAM_MODE_RAW)
+        return;
 
-// Create packet
-	ai_logging_packet_t data_packet;
-	ai_logging_clear_packet(&data_packet);
+    if (uart_tx_busy)
+        return;  // drop frame rather than corrupt
 
-// Set message to identify data type
-	static char msg[] = "RAW";
-	data_packet.message = (uint8_t*) msg;
-	data_packet.message_size = strlen(msg);
+    // Copy into dedicated TX buffer before DMA starts
+    memcpy(uart_tx_audio_buf, samples, num_samples * sizeof(uint16_t));
 
-// Set payload
-	data_packet.payload_type = AI_UINT16;
-	data_packet.payload = (uint8_t*) samples;
-	data_packet.payload_size = num_samples * sizeof(int16_t);
+    // Clean cache on the TX buffer (not the source)
+    SCB_CleanDCache_by_Addr(
+        (uint32_t*)uart_tx_audio_buf,
+        num_samples * sizeof(uint16_t));
 
-// Set shape (1D array)
-	ai_logging_create_shape_1d(&data_packet.shape, num_samples);
+    ai_logging_packet_t data_packet;
+    ai_logging_clear_packet(&data_packet);
 
-// Set timestamp (optional)
-	data_packet.timestamp = HAL_GetTick();
+    static char msg[] = "RAW";
+    data_packet.message = (uint8_t*)msg;
+    data_packet.message_size = strlen(msg);
+    data_packet.payload_type = AI_UINT16;
+    data_packet.payload = (uint8_t*)uart_tx_audio_buf;  // stable buffer
+    data_packet.payload_size = num_samples * sizeof(uint16_t);
+    ai_logging_create_shape_1d(&data_packet.shape, num_samples);
+    data_packet.timestamp = HAL_GetTick();
 
-// Send packet
-	ai_logging_send_packet(&ai_device, &data_packet);
-
-	stream_status.packets_sent++;
-
-// If single shot, reset mode
-	if (!stream_status.is_streaming) {
-		stream_status.mode = STREAM_MODE_IDLE;
-	}
+    ai_logging_send_packet(&ai_device, &data_packet);
+    stream_status.packets_sent++;
 }
 
 /**
