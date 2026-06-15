@@ -23,7 +23,7 @@
 #include <audio_stream_dsp/audio_stream.h>
 #include <audio_stream_dsp/audio_stream_fft.h>
 #include <audio_stream_dsp/audio_stream_tone.h>
-#include "bsp_sdram.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -134,7 +134,7 @@ int main(void) {
 
 	AudioStream_Init(&huart1);
 
-	BSP_AUDIO_IN_Start_Sample();
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */

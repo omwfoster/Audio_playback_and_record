@@ -27,7 +27,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 /* Include audio component Driver */
-#include "wm8994.h"
+#include "../Components/wm8994/wm8994.h"
 #include "stm32f769i_discovery.h"
 #include <stdlib.h>
 
@@ -57,7 +57,14 @@
 /** @defgroup BSP_Audio_Sample_Rate BSP Audio Sample Rate
   * @{
   */
-
+#define BSP_AUDIO_FREQUENCY_96K         SAI_AUDIO_FREQUENCY_96K
+#define BSP_AUDIO_FREQUENCY_48K         SAI_AUDIO_FREQUENCY_48K
+#define BSP_AUDIO_FREQUENCY_44K         SAI_AUDIO_FREQUENCY_44K
+#define BSP_AUDIO_FREQUENCY_32K         SAI_AUDIO_FREQUENCY_32K
+#define BSP_AUDIO_FREQUENCY_22K         SAI_AUDIO_FREQUENCY_22K
+#define BSP_AUDIO_FREQUENCY_16K         SAI_AUDIO_FREQUENCY_16K
+#define BSP_AUDIO_FREQUENCY_11K         SAI_AUDIO_FREQUENCY_11K
+#define BSP_AUDIO_FREQUENCY_8K          SAI_AUDIO_FREQUENCY_8K
 /**
   * @}
   */
@@ -80,7 +87,59 @@
 #define CODEC_AUDIOFRAME_SLOT_13                     SAI_SLOTACTIVE_1 | SAI_SLOTACTIVE_3
 
                                                        
-#define AUDIO_OUT_IRQ_PREPRIO                           EXTI15_10_IRQn
+/* SAI peripheral configuration defines */
+#define AUDIO_OUT_SAIx                           SAI1_Block_A
+#define AUDIO_OUT_SAIx_CLK_ENABLE()              __HAL_RCC_SAI1_CLK_ENABLE()
+#define AUDIO_OUT_SAIx_CLK_DISABLE()             __HAL_RCC_SAI1_CLK_DISABLE()
+#define AUDIO_OUT_SAIx_AF                        GPIO_AF6_SAI1
+
+#define AUDIO_OUT_SAIx_MCLK_ENABLE()             __HAL_RCC_GPIOG_CLK_ENABLE()
+#define AUDIO_OUT_SAIx_MCLK_GPIO_PORT            GPIOG
+#define AUDIO_OUT_SAIx_MCLK_PIN                  GPIO_PIN_7
+#define AUDIO_OUT_SAIx_SD_FS_CLK_ENABLE()        __HAL_RCC_GPIOE_CLK_ENABLE()
+#define AUDIO_OUT_SAIx_SD_FS_SCK_GPIO_PORT       GPIOE
+#define AUDIO_OUT_SAIx_FS_PIN                    GPIO_PIN_4
+#define AUDIO_OUT_SAIx_SCK_PIN                   GPIO_PIN_5
+#define AUDIO_OUT_SAIx_SD_PIN                    GPIO_PIN_6
+
+/* SAI DMA Stream definitions */
+#define AUDIO_OUT_SAIx_DMAx_CLK_ENABLE()         __HAL_RCC_DMA2_CLK_ENABLE()
+#define AUDIO_OUT_SAIx_DMAx_STREAM               DMA2_Stream1
+#define AUDIO_OUT_SAIx_DMAx_CHANNEL              DMA_CHANNEL_0
+#define AUDIO_OUT_SAIx_DMAx_IRQ                  DMA2_Stream1_IRQn
+#define AUDIO_OUT_SAIx_DMAx_PERIPH_DATA_SIZE     DMA_PDATAALIGN_HALFWORD
+#define AUDIO_OUT_SAIx_DMAx_MEM_DATA_SIZE        DMA_MDATAALIGN_HALFWORD
+#define DMA_MAX_SZE                              0xFFFF
+
+#define AUDIO_OUT_SAIx_DMAx_IRQHandler           DMA2_Stream1_IRQHandler
+
+/* Select the interrupt preemption priority and subpriority for the DMA interrupt */
+#define AUDIO_OUT_IRQ_PREPRIO                    ((uint32_t)0x0E)
+
+/*------------------------------------------------------------------------------
+                        AUDIO IN CONFIGURATION
+------------------------------------------------------------------------------*/
+/* SAI peripheral configuration defines */
+#define AUDIO_IN_SAIx                           SAI1_Block_B
+#define AUDIO_IN_SAIx_CLK_ENABLE()              __HAL_RCC_SAI1_CLK_ENABLE()
+#define AUDIO_IN_SAIx_CLK_DISABLE()             __HAL_RCC_SAI1_CLK_DISABLE()
+#define AUDIO_IN_SAIx_AF                        GPIO_AF6_SAI1
+#define AUDIO_IN_SAIx_SD_ENABLE()               __HAL_RCC_GPIOE_CLK_ENABLE()
+#define AUDIO_IN_SAIx_SD_GPIO_PORT              GPIOE
+#define AUDIO_IN_SAIx_SD_PIN                    GPIO_PIN_3
+
+/* SAI DMA Stream definitions */
+#define AUDIO_IN_SAIx_DMAx_CLK_ENABLE()         __HAL_RCC_DMA2_CLK_ENABLE()
+#define AUDIO_IN_SAIx_DMAx_STREAM               DMA2_Stream4
+#define AUDIO_IN_SAIx_DMAx_CHANNEL              DMA_CHANNEL_1
+#define AUDIO_IN_SAIx_DMAx_IRQ                  DMA2_Stream4_IRQn
+#define AUDIO_IN_SAIx_DMAx_PERIPH_DATA_SIZE     DMA_PDATAALIGN_HALFWORD
+#define AUDIO_IN_SAIx_DMAx_MEM_DATA_SIZE        DMA_MDATAALIGN_HALFWORD
+
+#define AUDIO_IN_INT_GPIO_ENABLE()               __HAL_RCC_GPIOJ_CLK_ENABLE()
+#define AUDIO_IN_INT_GPIO_PORT                   GPIOJ
+#define AUDIO_IN_INT_GPIO_PIN                    GPIO_PIN_12
+#define AUDIO_IN_INT_IRQ                         EXTI15_10_IRQn
 
 /* DFSDM Configuration defines */
 #define AUDIO_DFSDMx_TOP_RIGHT_CHANNEL                  DFSDM_CHANNEL_0
@@ -174,8 +233,38 @@
   * @}
   */ 
 
+/** @defgroup STM32F769I_DISCOVERY_AUDIO_OUT_Exported_Functions STM32F769I_DISCOVERY_AUDIO_OUT Exported Functions
+  * @{
+  */
+uint8_t BSP_AUDIO_OUT_Init(uint16_t OutputDevice, uint8_t Volume, uint32_t AudioFreq);
+void    BSP_AUDIO_OUT_DeInit(void);
+uint8_t BSP_AUDIO_OUT_Play(uint16_t* pBuffer, uint32_t Size);
+void    BSP_AUDIO_OUT_ChangeBuffer(uint16_t *pData, uint16_t Size);
+uint8_t BSP_AUDIO_OUT_Pause(void);
+uint8_t BSP_AUDIO_OUT_Resume(void);
+uint8_t BSP_AUDIO_OUT_Stop(uint32_t Option);
+uint8_t BSP_AUDIO_OUT_SetVolume(uint8_t Volume);
+void    BSP_AUDIO_OUT_SetFrequency(uint32_t AudioFreq);
+void    BSP_AUDIO_OUT_SetAudioFrameSlot(uint32_t AudioFrameSlot);
+uint8_t BSP_AUDIO_OUT_SetMute(uint32_t Cmd);
+uint8_t BSP_AUDIO_OUT_SetOutputMode(uint8_t Output);
 
+/* User Callbacks: user has to implement these functions in his code if they are needed. */
+/* This function is called when the requested data has been completely transferred.*/
+void    BSP_AUDIO_OUT_TransferComplete_CallBack(void);
 
+/* This function is called when half of the requested buffer has been transferred. */
+void    BSP_AUDIO_OUT_HalfTransfer_CallBack(void);
+
+/* This function is called when an Interrupt due to transfer error on or peripheral
+   error occurs. */
+void    BSP_AUDIO_OUT_Error_CallBack(void);
+
+/* These function can be modified in case the current settings (e.g. DMA stream)
+   need to be changed for specific application needs */
+void  BSP_AUDIO_OUT_ClockConfig(SAI_HandleTypeDef *hsai, uint32_t AudioFreq, void *Params);
+void  BSP_AUDIO_OUT_MspInit(SAI_HandleTypeDef *hsai, void *Params);
+void  BSP_AUDIO_OUT_MspDeInit(SAI_HandleTypeDef *hsai, void *Params);
 
 /**
   * @}
@@ -191,7 +280,6 @@ uint8_t BSP_AUDIO_IN_GetChannelNumber(void);
 void    BSP_AUDIO_IN_DeInit(void);
 uint8_t BSP_AUDIO_IN_Record(uint16_t *pData, uint32_t Size);
 uint8_t BSP_AUDIO_IN_Stop(void);
-void BSP_AUDIO_IN_Start_Sample(void);
 uint8_t BSP_AUDIO_IN_Pause(void);
 uint8_t BSP_AUDIO_IN_Resume(void);
 
