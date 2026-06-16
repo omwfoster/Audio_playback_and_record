@@ -27,7 +27,6 @@
 #include "waveplayer.h"
 #include "waverecorder.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -38,7 +37,7 @@
 UART_HandleTypeDef huart1;
 
 static uint8_t str[] __attribute__((aligned(32)))
-		= "Hello from the STM32F769I-DISCO!\r\n";
+= "Hello from the STM32F769I-DISCO!\r\n";
 
 AUDIO_ApplicationTypeDef appli_state = APPLICATION_IDLE;
 FATFS SDCard_FatFs;
@@ -61,12 +60,10 @@ char SDCard_Path[4] = "0:/";
 
 /* USER CODE BEGIN PV */
 
-
 /* Private variables ---------------------------------------------------------*/
 
-
 extern __attribute__((section(".dma_buffers")))
- AUDIO_IN_BufferTypeDef BufferCtl;
+  AUDIO_IN_BufferTypeDef BufferCtl;
 
 volatile uint32_t DmaTopLeftRecHalfCplt;
 volatile uint32_t DmaTopLeftRecCplt;
@@ -138,33 +135,24 @@ int main(void) {
 	MX_DMA_Init();
 	MX_USART1_UART_Init();
 
-
-
 	AudioStream_Init(&huart1);
 
-	  AUDIO_InitApplication();
+	AUDIO_InitApplication();
 
-	  /* Init TS module */
-	  BSP_TS_Init(800, 480);
+	/* Init TS module */
+	BSP_TS_Init(800, 480);
 
-	  /* Link SD disk I/O driver and mount the filesystem */
-	  if (FATFS_LinkDriver(&SD_Driver, SDCard_Path) == 0)
-	  {
-	    if (f_mount(&SDCard_FatFs, (TCHAR const *)SDCard_Path, 0) == FR_OK)
-	    {
-	      LCD_DbgLog("INFO : SD card mounted on %s\n", SDCard_Path);
-	      appli_state = APPLICATION_READY;
-	    }
-	    else
-	    {
-	      LCD_ErrLog("ERROR : Cannot mount FatFs on SD card!\n");
-	    }
-	  }
-	  else
-	  {
-	    LCD_ErrLog("ERROR : Cannot link SD FatFs driver!\n");
-	  }
-
+	/* Link SD disk I/O driver and mount the filesystem */
+	if (FATFS_LinkDriver(&SD_Driver, SDCard_Path) == 0) {
+		if (f_mount(&SDCard_FatFs, (TCHAR const*) SDCard_Path, 0) == FR_OK) {
+			LCD_DbgLog("INFO : SD card mounted on %s\n", SDCard_Path);
+			appli_state = APPLICATION_READY;
+		} else {
+			LCD_ErrLog("ERROR : Cannot mount FatFs on SD card!\n");
+		}
+	} else {
+		LCD_ErrLog("ERROR : Cannot link SD FatFs driver!\n");
+	}
 
 	/* USER CODE END 2 */
 
@@ -178,44 +166,65 @@ int main(void) {
 		}
 
 		if (DmaTopLeftRecHalfCplt == 1) {
-			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0], PCM_BUFFER_SIZE/2);
+			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0],
+					PCM_BUFFER_SIZE / 2);
 			//uart_send((uint8_t*) str, 34);
 			DmaTopLeftRecHalfCplt = 0;
 		} else if (DmaTopLeftRecCplt == 1) {
 			DmaTopLeftRecCplt = 0;
-		    AudioStream_SendRawSamples(&BufferCtl.pcm_buff[((PCM_BUFFER_SIZE/2))], PCM_BUFFER_SIZE/2);
+			AudioStream_SendRawSamples(
+					&BufferCtl.pcm_buff[((PCM_BUFFER_SIZE / 2))],
+					PCM_BUFFER_SIZE / 2);
 		}
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
 
+		/* Poll SD card presence; update application state */
+		if (BSP_SD_IsDetected() == SD_PRESENT) {
+			if (appli_state == APPLICATION_IDLE) {
+				/* Card was re-inserted — remount */
+				if (f_mount(&SDCard_FatFs, (TCHAR const*) SDCard_Path, 0)
+						== FR_OK) {
+					appli_state = APPLICATION_READY;
+					LCD_DbgLog("INFO : SD card re-mounted.\n");
+				}
+			}
+		} else {
+			if (appli_state == APPLICATION_READY) {
+				appli_state = APPLICATION_DISCONNECT;
+				LCD_ErrLog("SD card removed!\n");
+			}
+		}
+
+		/* AUDIO Menu Process */
+		AUDIO_MenuProcess();
 		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */
 }
 
-static void AUDIO_InitApplication(void)
-{
-  /* Initialize the LCD */
-  BSP_LCD_Init();
+static void AUDIO_InitApplication(void) {
+	/* Initialize the LCD */
+	BSP_LCD_Init();
 
-  /* LCD Layer Initialization */
-  BSP_LCD_LayerDefaultInit(1, LCD_FB_START_ADDRESS);
+	/* LCD Layer Initialization */
+	BSP_LCD_LayerDefaultInit(1, LCD_FB_START_ADDRESS);
 
-  /* Select the LCD Layer */
-  BSP_LCD_SelectLayer(1);
+	/* Select the LCD Layer */
+	BSP_LCD_SelectLayer(1);
 
-  /* Enable the display */
-  BSP_LCD_DisplayOn();
+	/* Enable the display */
+	BSP_LCD_DisplayOn();
 
-  /* Init the LCD Log module */
-  LCD_LOG_Init();
+	/* Init the LCD Log module */
+	LCD_LOG_Init();
 
-  LCD_LOG_SetHeader((uint8_t *)"Audio Record to SD Card");
+	LCD_LOG_SetHeader((uint8_t*) "Audio Record to SD Card");
 
-  LCD_UsrLog("Insert microSD card and touch to record.\n");
+	LCD_UsrLog("Insert microSD card and touch to record.\n");
 
-  /* Init Audio interface (output path for playback) */
-  AUDIO_PLAYER_Init();
+	/* Init Audio interface (output path for playback) */
+	AUDIO_PLAYER_Init();
 }
 
 /**
@@ -226,30 +235,39 @@ void SystemClock_Config(void) {
 	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
 	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 
-	/** Configure the main internal regulator output voltage
-	 */
+	/* Enable PWR clock and select Voltage Scale 1 (required for 200 MHz). */
 	__HAL_RCC_PWR_CLK_ENABLE();
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-	/** Initializes the RCC Oscillators according to the specified parameters
-	 * in the RCC_OscInitTypeDef structure.
-	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+	/* Enable HSE (25 MHz crystal) and run the main PLL from it.
+	 *
+	 * HSE IS MANDATORY HERE: the DSI D-PHY PLL is fed only from HSE, so the
+	 * LCD cannot come up on HSI (DSI reads/writes never complete -> the
+	 * OTM8009A/NT35510 init "spins"). In addition, both BSP clock configs
+	 * assume HSE/PLLM = 1 MHz:
+	 *   - BSP_AUDIO_IN/OUT_ClockConfig -> PLLI2S (SAI2/SAI1, DFSDM)
+	 *   - BSP_LCD_InitEx               -> PLLSAI (LTDC) and the DSI PLL
+	 *
+	 * PLLM = 25 -> 1 MHz PLL input; PLLN = 400, PLLP = 2 -> SYSCLK = 200 MHz. */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-	RCC_OscInitStruct.PLL.PLLM = 8;
-	RCC_OscInitStruct.PLL.PLLN = 192;
-	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
-	RCC_OscInitStruct.PLL.PLLQ = 4;
-	RCC_OscInitStruct.PLL.PLLR = 2;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLM = 25;
+	RCC_OscInitStruct.PLL.PLLN = 400;
+	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+	RCC_OscInitStruct.PLL.PLLQ = 8;
+	RCC_OscInitStruct.PLL.PLLR = 7;
 	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
 		Error_Handler();
 	}
 
-	/** Initializes the CPU, AHB and APB buses clocks
-	 */
+	/* Activate OverDrive to reach the 200 MHz frequency. */
+	if (HAL_PWREx_EnableOverDrive() != HAL_OK) {
+		Error_Handler();
+	}
+
+	/* SYSCLK=200MHz, HCLK=200MHz, APB1=50MHz, APB2=100MHz. */
 	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
 			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -257,24 +275,14 @@ void SystemClock_Config(void) {
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK) {
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6) != HAL_OK) {
 		Error_Handler();
 	}
 
-	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = { 0 };
-
-	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
-	PeriphClkInitStruct.PLLSAI.PLLSAIN = 384; /* VCO = 16MHz/8 * 384 = 768MHz */
-	PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
-	PeriphClkInitStruct.PLLSAIDivQ = 8; /* SAI clk = 768/2/8 = 48MHz ≈ 49.152MHz */
-	PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLLSAI;
-
-	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
-		Error_Handler();
-	}
-
-	volatile uint32_t pllsaicfgr = RCC->PLLSAICFGR;
-	volatile uint32_t rcc_cr = RCC->CR;
+	/* IMPORTANT: PLLSAI (LTDC/DSI) and PLLI2S (audio SAI/DFSDM) are configured
+	 * by the BSP at init time (BSP_LCD_InitEx, BSP_AUDIO_IN/OUT_ClockConfig).
+	 * Do NOT program them here -- a manual PLLSAI setup collides with the LCD
+	 * and was the reason the previous build fought over the PLLSAI. */
 }
 
 /**
@@ -770,7 +778,6 @@ static void MX_USART1_UART_Init(void) {
 
 void MX_DMA_Init() {
 
-
 	__HAL_RCC_DMA2_CLK_ENABLE();
 
 	hdma_usart1_tx.Instance = DMA2_Stream7;
@@ -823,17 +830,17 @@ void MPU_Config(void) {
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 	/* Enables the MPU */
 
-	MPU_InitStruct.Number       = MPU_REGION_NUMBER1;
-	MPU_InitStruct.BaseAddress  = 0x20020000;
-	MPU_InitStruct.Size         = MPU_REGION_SIZE_512KB;  // was 32KB
+	MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+	MPU_InitStruct.BaseAddress = 0x20020000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;  // was 32KB
 	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-	MPU_InitStruct.IsCacheable  = MPU_ACCESS_NOT_CACHEABLE;
+	MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
 	MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-	MPU_InitStruct.IsShareable  = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec  = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.Enable       = MPU_REGION_ENABLE;
+	MPU_InitStruct.Enable = MPU_REGION_ENABLE;
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	/* Region 2: DTCM — stack, .bss, .data */
@@ -972,21 +979,15 @@ void Error_Handler(void) {
 	/* USER CODE END Error_Handler_Debug */
 }
 
-
-void Default_Handler_C(void)
-{
-    volatile uint32_t ipsr = __get_IPSR();        // which IRQ
-    volatile uint32_t cfsr = SCB->CFSR;           // fault status
-    volatile uint32_t hfsr = SCB->HFSR;
-    (void)ipsr; (void)cfsr; (void)hfsr;
-    __BKPT(0);
+void Default_Handler_C(void) {
+	volatile uint32_t ipsr = __get_IPSR();        // which IRQ
+	volatile uint32_t cfsr = SCB->CFSR;           // fault status
+	volatile uint32_t hfsr = SCB->HFSR;
+	(void) ipsr;
+	(void) cfsr;
+	(void) hfsr;
+	__BKPT(0);
 }
-
-
-
-
-
-
 
 #ifdef USE_FULL_ASSERT
 /**
