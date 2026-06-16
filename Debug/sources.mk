@@ -42,6 +42,7 @@ Drivers/Components/otm8009a \
 Drivers/Components/wm8994 \
 Drivers/FatFs-main/ffsystem \
 Drivers/FatFs-main/src \
+Drivers/Log \
 Drivers/STM32F7xx_HAL_Driver/Src \
 Drivers/final_boss_drivers \
 

@@ -24,6 +24,9 @@
 #include <audio_stream_dsp/audio_stream_fft.h>
 #include <audio_stream_dsp/audio_stream_tone.h>
 
+#include "waveplayer.h"
+#include "waverecorder.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,6 +39,10 @@ UART_HandleTypeDef huart1;
 
 static uint8_t str[] __attribute__((aligned(32)))
 		= "Hello from the STM32F769I-DISCO!\r\n";
+
+AUDIO_ApplicationTypeDef appli_state = APPLICATION_IDLE;
+FATFS SDCard_FatFs;
+char SDCard_Path[4] = "0:/";
 // AI Logging
 
 /* USER CODE END PTD */
@@ -82,6 +89,7 @@ static void CPU_CACHE_Enable(void);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
+static void AUDIO_InitApplication(void);
 
 /* USER CODE END PFP */
 
@@ -134,6 +142,29 @@ int main(void) {
 
 	AudioStream_Init(&huart1);
 
+	  AUDIO_InitApplication();
+
+	  /* Init TS module */
+	  BSP_TS_Init(800, 480);
+
+	  /* Link SD disk I/O driver and mount the filesystem */
+	  if (FATFS_LinkDriver(&SD_Driver, SDCard_Path) == 0)
+	  {
+	    if (f_mount(&SDCard_FatFs, (TCHAR const *)SDCard_Path, 0) == FR_OK)
+	    {
+	      LCD_DbgLog("INFO : SD card mounted on %s\n", SDCard_Path);
+	      appli_state = APPLICATION_READY;
+	    }
+	    else
+	    {
+	      LCD_ErrLog("ERROR : Cannot mount FatFs on SD card!\n");
+	    }
+	  }
+	  else
+	  {
+	    LCD_ErrLog("ERROR : Cannot link SD FatFs driver!\n");
+	  }
+
 
 	/* USER CODE END 2 */
 
@@ -160,6 +191,31 @@ int main(void) {
 		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */
+}
+
+static void AUDIO_InitApplication(void)
+{
+  /* Initialize the LCD */
+  BSP_LCD_Init();
+
+  /* LCD Layer Initialization */
+  BSP_LCD_LayerDefaultInit(1, LCD_FB_START_ADDRESS);
+
+  /* Select the LCD Layer */
+  BSP_LCD_SelectLayer(1);
+
+  /* Enable the display */
+  BSP_LCD_DisplayOn();
+
+  /* Init the LCD Log module */
+  LCD_LOG_Init();
+
+  LCD_LOG_SetHeader((uint8_t *)"Audio Record to SD Card");
+
+  LCD_UsrLog("Insert microSD card and touch to record.\n");
+
+  /* Init Audio interface (output path for playback) */
+  AUDIO_PLAYER_Init();
 }
 
 /**

@@ -53,7 +53,8 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private typedef -----------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-ALIGN_32BYTES (static AUDIO_OUT_BufferTypeDef  BufferCtl);
+__attribute__((section(".dma_buffers")))
+ AUDIO_IN_BufferTypeDef BufferCtl;
 static int16_t FilePos = 0;
 static __IO uint32_t uwVolume = 70;
 static Point NextPoints[] = {{TOUCH_NEXT_XMIN, TOUCH_NEXT_YMIN},
@@ -109,26 +110,26 @@ AUDIO_ErrorTypeDef AUDIO_PLAYER_Start(uint8_t idx)
     /*Adjust the Audio frequency */
     PlayerInit(WaveFormat.SampleRate); 
     
-    BufferCtl.state = BUFFER_OFFSET_NONE;
+    BufferCtl.wr_state = BUFFER_OFFSET_NONE;
     
     /* Get Data from USB Flash Disk */
     f_lseek(&WavFile, 0);
     
     /* Fill whole buffer at first time */
     if(f_read(&WavFile, 
-              &BufferCtl.buff[0], 
+              &BufferCtl.pcm_buff[0],
               AUDIO_OUT_BUFFER_SIZE, 
               (void *)&bytesread) == FR_OK)
     {
       /* Clean Data Cache to update the content of the SRAM */
-      SCB_CleanDCache_by_Addr((uint32_t*)&BufferCtl.buff[0], AUDIO_OUT_BUFFER_SIZE);
+      SCB_CleanDCache_by_Addr((uint32_t*)&BufferCtl.pcm_buff[0], AUDIO_OUT_BUFFER_SIZE);
       AudioState = AUDIO_STATE_PLAY;
       AUDIO_PlaybackDisplayButtons();
       BSP_LCD_DisplayStringAt(250, LINE(9), (uint8_t *)"  [PLAY ]", LEFT_MODE);
       { 
         if(bytesread != 0)
         {
-          BSP_AUDIO_OUT_Play((uint16_t*)&BufferCtl.buff[0], AUDIO_OUT_BUFFER_SIZE);
+          BSP_AUDIO_OUT_Play((uint16_t*)&BufferCtl.pcm_buff[0], AUDIO_OUT_BUFFER_SIZE);
           BufferCtl.fptr = bytesread;
           return AUDIO_ERROR_NONE;
         }
@@ -159,36 +160,36 @@ AUDIO_ErrorTypeDef AUDIO_PLAYER_Process(void)
       AudioState = AUDIO_STATE_NEXT;
     }
     
-    if(BufferCtl.state == BUFFER_OFFSET_HALF)
+    if(BufferCtl.wr_state == BUFFER_OFFSET_HALF)
     {
       if(f_read(&WavFile, 
-                &BufferCtl.buff[0], 
+                &BufferCtl.pcm_buff[0],
                 AUDIO_OUT_BUFFER_SIZE/2, 
                 (void *)&bytesread) != FR_OK)
       {
         /* Clean Data Cache to update the content of the SRAM */
-        SCB_CleanDCache_by_Addr((uint32_t*)&BufferCtl.buff[0], AUDIO_OUT_BUFFER_SIZE/2);
+        SCB_CleanDCache_by_Addr((uint32_t*)&BufferCtl.pcm_buff[0], AUDIO_OUT_BUFFER_SIZE/2);
         BSP_AUDIO_OUT_Stop(CODEC_PDWN_SW); 
         return AUDIO_ERROR_IO;       
       } 
-      BufferCtl.state = BUFFER_OFFSET_NONE;
+      BufferCtl.wr_state = BUFFER_OFFSET_NONE;
       BufferCtl.fptr += bytesread; 
     }
     
-    if(BufferCtl.state == BUFFER_OFFSET_FULL)
+    if(BufferCtl.wr_state == BUFFER_OFFSET_FULL)
     {
       if(f_read(&WavFile, 
-                &BufferCtl.buff[AUDIO_OUT_BUFFER_SIZE /2], 
+                &BufferCtl.pcm_buff[AUDIO_OUT_BUFFER_SIZE /2],
                 AUDIO_OUT_BUFFER_SIZE/2, 
                 (void *)&bytesread) != FR_OK)
       {
         /* Clean Data Cache to update the content of the SRAM */
-        SCB_CleanDCache_by_Addr((uint32_t*)&BufferCtl.buff[AUDIO_OUT_BUFFER_SIZE /2], AUDIO_OUT_BUFFER_SIZE/2);
+        SCB_CleanDCache_by_Addr((uint32_t*)&BufferCtl.pcm_buff[AUDIO_OUT_BUFFER_SIZE /2], AUDIO_OUT_BUFFER_SIZE/2);
         BSP_AUDIO_OUT_Stop(CODEC_PDWN_SW); 
         return AUDIO_ERROR_IO;       
       } 
  
-      BufferCtl.state = BUFFER_OFFSET_NONE;
+      BufferCtl.wr_state = BUFFER_OFFSET_NONE;
       BufferCtl.fptr += bytesread; 
     }
     
@@ -326,7 +327,7 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(void)
 {
   if(AudioState == AUDIO_STATE_PLAY)
   {
-    BufferCtl.state = BUFFER_OFFSET_FULL;
+    BufferCtl.wr_state = BUFFER_OFFSET_FULL;
   }
 }
 
@@ -339,7 +340,7 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(void)
 { 
   if(AudioState == AUDIO_STATE_PLAY)
   {
-    BufferCtl.state = BUFFER_OFFSET_HALF;
+    BufferCtl.wr_state = BUFFER_OFFSET_HALF;
   }
 }
 /*******************************************************************************
