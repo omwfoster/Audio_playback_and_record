@@ -179,7 +179,10 @@ typedef enum {
 
 
 typedef struct {
-  uint16_t pcm_buff[PCM_BUFFER_SIZE];
+  /* Sized for the capture/record path (BufferCtl_In): the BSP fills this with
+     AUDIO_IN_PCM_BUFFER_SIZE half-words per cycle. It MUST be at least that big
+     or the DFSDM conversion overruns it and corrupts adjacent RAM. */
+  uint16_t pcm_buff[AUDIO_IN_PCM_BUFFER_SIZE];
   uint16_t * pcm_ptr;
   WR_BUFFER_StateTypeDef wr_state;
   uint32_t offset;

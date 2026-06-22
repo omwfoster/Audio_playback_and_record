@@ -39,5 +39,10 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void);
 AUDIO_ErrorTypeDef AUDIO_REC_Start(void);
 AUDIO_ErrorTypeDef AUDIO_PLAYER_Init(void);
 
+/* DFSDM DMA ISR hooks — call these from the BSP audio-in DMA callbacks so the
+   SD-write loop is notified when each half of the capture buffer is ready. */
+void AUDIO_REC_HalfTransfer_Callback(void);
+void AUDIO_REC_TransferComplete_Callback(void);
+
 #endif /* __WAVERECORDER_H */
 

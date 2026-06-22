@@ -21,21 +21,21 @@
 #include "main.h"
 
 /* Private defines -----------------------------------------------------------*/
-/* Touch zones for the record screen */
+/* Touch zones for the record screen — bottom 10% (48px) button bar */
 #define TOUCH_RECORD_XMIN   300
 #define TOUCH_RECORD_XMAX   340
-#define TOUCH_RECORD_YMIN   212
-#define TOUCH_RECORD_YMAX   252
+#define TOUCH_RECORD_YMIN   432
+#define TOUCH_RECORD_YMAX   480
 
 #define TOUCH_STOP_XMIN     205
 #define TOUCH_STOP_XMAX     245
-#define TOUCH_STOP_YMIN     212
-#define TOUCH_STOP_YMAX     252
+#define TOUCH_STOP_YMIN     432
+#define TOUCH_STOP_YMAX     480
 
 #define TOUCH_PAUSE_XMIN    125
 #define TOUCH_PAUSE_XMAX    149
-#define TOUCH_PAUSE_YMIN    212
-#define TOUCH_PAUSE_YMAX    252
+#define TOUCH_PAUSE_YMIN    432
+#define TOUCH_PAUSE_YMAX    480
 
 /* WAV RIFF constants (little-endian 32-bit tags) */
 #define RIFF_TAG    0x46464952U  /* "RIFF" */
@@ -44,7 +44,7 @@
 #define DATA_TAG    0x61746164U  /* "data" */
 
 /* Scratch buffer for BSP_AUDIO_IN internal use */
-#define SCRATCH_BUFF_SIZE  512
+#define SCRATCH_BUFF_SIZE  1024
 
 /* Private variables ---------------------------------------------------------*/
 static int32_t Scratch[SCRATCH_BUFF_SIZE];
@@ -81,6 +81,25 @@ static uint8_t  TouchInRegion(uint16_t x, uint16_t y,
 /* Public functions ----------------------------------------------------------*/
 
 /**
+  * @brief  DFSDM DMA half-transfer hook — first half of BufferCtl_In is ready.
+  *         Called from BSP_AUDIO_IN_HalfTransfer_CallBack() (in main.c) so the
+  *         SD-write loop in AUDIO_REC_Process() flushes it to the WAV file.
+  */
+void AUDIO_REC_HalfTransfer_Callback(void)
+{
+  DmaRecHalfBuffCplt = 1;
+}
+
+/**
+  * @brief  DFSDM DMA transfer-complete hook — second half of BufferCtl_In ready.
+  *         Called from BSP_AUDIO_IN_TransferComplete_CallBack() (in main.c).
+  */
+void AUDIO_REC_TransferComplete_Callback(void)
+{
+  DmaRecBuffCplt = 1;
+}
+
+/**
   * @brief  Start MEMS microphone capture and open the WAV file on SD.
   * @retval AUDIO_ERROR_NONE on success, AUDIO_ERROR_IO on failure.
   */
@@ -97,10 +116,11 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
   BufferCtl_In.fptr     = 0;
 
   /* Create (or overwrite) the WAV file on the SD card root */
-  if (f_open(&WavRecFile, REC_WAVE_NAME,
-             FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
+  FRESULT fr = f_open(&WavRecFile, REC_WAVE_NAME,
+                      FA_CREATE_ALWAYS | FA_WRITE);
+  if (fr != FR_OK)
   {
-    LCD_ErrLog("Cannot create %s on SD card!\n", REC_WAVE_NAME);
+    LCD_ErrLog("Cannot create %s (f_open=%d)\n", REC_WAVE_NAME, (int)fr);
     return AUDIO_ERROR_IO;
   }
 
@@ -322,9 +342,10 @@ static void FinaliseWavHeader(FIL *fp, uint32_t data_bytes)
 static void AUDIO_REC_DisplayButtons(void)
 {
   BSP_LCD_SetFont(&LCD_LOG_HEADER_FONT);
-  BSP_LCD_ClearStringLine(13);
-  BSP_LCD_ClearStringLine(14);
-  BSP_LCD_ClearStringLine(15);
+  /* Clear the bottom button bar (bottom 10% of the screen) */
+  BSP_LCD_SetTextColor(LCD_LOG_BACKGROUND_COLOR);
+  BSP_LCD_FillRect(0, TOUCH_STOP_YMIN, BSP_LCD_GetXSize(),
+                   TOUCH_STOP_YMAX - TOUCH_STOP_YMIN);
   BSP_LCD_SetTextColor(LCD_COLOR_RED);
 
   /* Stop button — solid square */

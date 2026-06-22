@@ -159,11 +159,16 @@ uint8_t BSP_SD_Init(void)
     sd_state = MSD_ERROR;
   }
 
-  /* Configure SD Bus width */
+  /* Configure SD Bus width.
+   * Use 1-bit mode: only D0 (PG9) is used for data. The 4-bit data lines
+   * D2/D3 are on PB3/PB4 (the JTAG JTDO/NJTRST pins) and 4-bit data reads
+   * CRC-fail on this setup (command phase over CMD/D0 works, so init/SCR read
+   * succeed, but the first 4-bit data block read returns FR_DISK_ERR).
+   * 1-bit @ ~24 MHz is ~3 MB/s, far more than this 16 kHz recorder needs. */
   if(sd_state == MSD_OK)
   {
-    /* Enable wide operation */
-    if(HAL_SD_ConfigWideBusOperation(&uSdHandle, SDMMC_BUS_WIDE_4B) != HAL_OK)
+    /* Enable 1-bit operation */
+    if(HAL_SD_ConfigWideBusOperation(&uSdHandle, SDMMC_BUS_WIDE_1B) != HAL_OK)
     {
       sd_state = MSD_ERROR;
     }

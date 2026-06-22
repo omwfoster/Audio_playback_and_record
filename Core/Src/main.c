@@ -135,20 +135,30 @@ int main(void) {
 	MX_DMA_Init();
 	MX_USART1_UART_Init();
 
+	HAL_UART_Transmit(&huart1, (uint8_t *)"BOOT 921600\r\n", 13, 100);
+
 	AudioStream_Init(&huart1);
 
+	HAL_UART_Transmit(&huart1, (uint8_t *)"BOOT 921600\r\n", 13, 100);
+
 	AUDIO_InitApplication();
+
+	HAL_UART_Transmit(&huart1, (uint8_t *)"BOOT 921600\r\n", 13, 100);
 
 	/* Init TS module */
 	BSP_TS_Init(800, 480);
 
-	/* Link SD disk I/O driver and mount the filesystem */
+	/* Link SD disk I/O driver and FORCE-mount (opt=1) so the boot sector is
+	 * actually read now. This separates the READ path (mount) from the file
+	 * create WRITE path, and prints the FRESULT so we can see exactly which
+	 * stage fails. */
 	if (FATFS_LinkDriver(&SD_Driver, SDCard_Path) == 0) {
-		if (f_mount(&SDCard_FatFs, (TCHAR const*) SDCard_Path, 0) == FR_OK) {
+		FRESULT fr = f_mount(&SDCard_FatFs, (TCHAR const*) SDCard_Path, 1);
+		if (fr == FR_OK) {
 			LCD_DbgLog("INFO : SD card mounted on %s\n", SDCard_Path);
 			appli_state = APPLICATION_READY;
 		} else {
-			LCD_ErrLog("ERROR : Cannot mount FatFs on SD card!\n");
+			LCD_ErrLog("ERROR : f_mount failed (%d)\n", (int)fr);
 		}
 	} else {
 		LCD_ErrLog("ERROR : Cannot link SD FatFs driver!\n");
@@ -235,7 +245,7 @@ void SystemClock_Config(void) {
 	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
 	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
 
-	/* Enable PWR clock and select Voltage Scale 1 (required for 200 MHz). */
+	/* Enable PWR clock and select Voltage Scale 1 (required above 180 MHz). */
 	__HAL_RCC_PWR_CLK_ENABLE();
 	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
@@ -248,13 +258,18 @@ void SystemClock_Config(void) {
 	 *   - BSP_AUDIO_IN/OUT_ClockConfig -> PLLI2S (SAI2/SAI1, DFSDM)
 	 *   - BSP_LCD_InitEx               -> PLLSAI (LTDC) and the DSI PLL
 	 *
-	 * PLLM = 25 -> 1 MHz PLL input; PLLN = 400, PLLP = 2 -> SYSCLK = 200 MHz. */
+	 * PLLM = 25 -> 1 MHz PLL input.
+	 * PLLN = 384 -> VCO = 384 MHz; PLLP = 2 -> SYSCLK = 192 MHz.
+	 * PLLQ = 8   -> PLL48CLK = 384/8 = 48 MHz EXACTLY. This feeds the SDMMC2
+	 *   kernel clock (reset default = PLL48CLK), so the BSP dividers produce an
+	 *   in-spec card clock: init 48/120 = 400 kHz, transfer 48/2 = 24 MHz.
+	 *   (At 50 MHz the transfer clock hit 25 MHz / init 417 kHz -> FR_DISK_ERR.) */
 	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 	RCC_OscInitStruct.PLL.PLLM = 25;
-	RCC_OscInitStruct.PLL.PLLN = 400;
+	RCC_OscInitStruct.PLL.PLLN = 384;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
 	RCC_OscInitStruct.PLL.PLLQ = 8;
 	RCC_OscInitStruct.PLL.PLLR = 7;
@@ -262,12 +277,12 @@ void SystemClock_Config(void) {
 		Error_Handler();
 	}
 
-	/* Activate OverDrive to reach the 200 MHz frequency. */
+	/* Activate OverDrive (required above 180 MHz). */
 	if (HAL_PWREx_EnableOverDrive() != HAL_OK) {
 		Error_Handler();
 	}
 
-	/* SYSCLK=200MHz, HCLK=200MHz, APB1=50MHz, APB2=100MHz. */
+	/* SYSCLK=192MHz, HCLK=192MHz, APB1=48MHz, APB2=96MHz. */
 	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
 			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -755,7 +770,7 @@ static void MX_USART1_UART_Init(void) {
 
 	/* USER CODE END USART1_Init 1 */
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 115200;
+	huart1.Init.BaudRate = 921600;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -914,6 +929,9 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 	BufferCtl.wr_state = BUFFER_FULL;
 	BufferCtl.offset = 0;
 
+	/* Hand the second half to the SD recorder (no-op unless recording) */
+	AUDIO_REC_TransferComplete_Callback();
+
 }
 
 /**
@@ -929,6 +947,9 @@ void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[0];
 	BufferCtl.wr_state = BUFFER_HALF;
 	BufferCtl.offset = 0;
+
+	/* Hand the first half to the SD recorder (no-op unless recording) */
+	AUDIO_REC_HalfTransfer_Callback();
 }
 
 static void HandleCommand(uint8_t cmd) {

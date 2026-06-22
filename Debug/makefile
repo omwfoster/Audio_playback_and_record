@@ -80,8 +80,8 @@ all: main-build
 main-build: audio_final_boss.elf secondary-outputs
 
 # Tool invocations
-audio_final_boss.elf audio_final_boss.map: $(OBJS) $(USER_OBJS) /Users/oliverfoster/Documents/carrion/audio_final_boss/STM32F769NIHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "audio_final_boss.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Users/oliverfoster/Documents/carrion/audio_final_boss/STM32F769NIHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="audio_final_boss.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+audio_final_boss.elf audio_final_boss.map: $(OBJS) $(USER_OBJS) /Users/oliverfoster/Documents/Development/Projects/carrion/audio_final_boss/STM32F769NIHX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "audio_final_boss.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Users/oliverfoster/Documents/Development/Projects/carrion/audio_final_boss/STM32F769NIHX_FLASH.ld" --specs=nosys.specs -Wl,-Map="audio_final_boss.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

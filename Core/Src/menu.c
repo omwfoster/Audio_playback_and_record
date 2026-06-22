@@ -22,15 +22,16 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+/* Buttons live in a bar occupying the bottom 10% (48px) of the 480px screen */
 #define TOUCH_RECORD_XMIN       300
 #define TOUCH_RECORD_XMAX       340
-#define TOUCH_RECORD_YMIN       212
-#define TOUCH_RECORD_YMAX       252
+#define TOUCH_RECORD_YMIN       432
+#define TOUCH_RECORD_YMAX       480
 
 #define TOUCH_PLAYBACK_XMIN     125
 #define TOUCH_PLAYBACK_XMAX     165
-#define TOUCH_PLAYBACK_YMIN     212
-#define TOUCH_PLAYBACK_YMAX     252
+#define TOUCH_PLAYBACK_YMIN     432
+#define TOUCH_PLAYBACK_YMAX     480
 
 /* Private macro -------------------------------------------------------------*/
 /* Global extern variables ---------------------------------------------------*/
@@ -67,9 +68,10 @@ void AUDIO_MenuProcess(void)
       AudioDemo.state = AUDIO_DEMO_WAIT;
       
       BSP_LCD_SetFont(&LCD_LOG_HEADER_FONT);
-      BSP_LCD_ClearStringLine(13);     /* Clear touch screen buttons dedicated zone */
-      BSP_LCD_ClearStringLine(14);
-      BSP_LCD_ClearStringLine(15);
+      /* Clear the bottom button bar (bottom 10% of the screen) */
+      BSP_LCD_SetTextColor(LCD_LOG_BACKGROUND_COLOR);
+      BSP_LCD_FillRect(0, TOUCH_RECORD_YMIN, BSP_LCD_GetXSize(),
+                       TOUCH_RECORD_YMAX - TOUCH_RECORD_YMIN);
       BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
       BSP_LCD_FillPolygon(PlaybackLogoPoints, 3);                 /* Playback sign */
       BSP_LCD_FillCircle((TOUCH_RECORD_XMAX+TOUCH_RECORD_XMIN)/2, /* Record circle */
@@ -77,7 +79,7 @@ void AUDIO_MenuProcess(void)
                          (TOUCH_RECORD_XMAX-TOUCH_RECORD_XMIN)/2);
       BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
       BSP_LCD_SetFont(&LCD_LOG_TEXT_FONT);
-      BSP_LCD_DisplayStringAtLine(15, (uint8_t *)"Use touch screen to enter playback or record menu");
+  //    BSP_LCD_DisplayStringAtLine(15, (uint8_t *)"Use touch screen to enter playback or record menu");
       break;    
       
     case AUDIO_DEMO_WAIT:
@@ -95,11 +97,8 @@ void AUDIO_MenuProcess(void)
         {
           AudioDemo.state = AUDIO_DEMO_PLAYBACK;
         }
-        else
-        {
-          AudioDemo.state = AUDIO_DEMO_EXPLORE;
-        }
-        
+        /* Touches outside the record/playback buttons are ignored (no catch-all). */
+
         /* Wait for touch released */
         do
         {
@@ -254,8 +253,10 @@ static void AUDIO_ChangeSelectMode(AUDIO_DEMO_SelectMode select_mode)
 static void LCD_ClearTextZone(void)
 {
   uint8_t i = 0;
-  
-  for(i= 0; i < 13; i++)
+
+  /* Clear the whole text area between the header and the bottom button bar
+   * (lines 3..26 in Font16); the button bar at lines 27-29 is left intact. */
+  for(i= 0; i < 24; i++)
   {
     BSP_LCD_ClearStringLine(i + 3);
   }

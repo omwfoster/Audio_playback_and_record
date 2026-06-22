@@ -15,6 +15,19 @@
 #include "stm32f769i_discovery_sd.h"
 #include "sd_diskio.h"
 
+/* FatFs R0.15 removed the _USE_WRITE / _USE_IOCTL switches and makes disk_write
+ * and disk_ioctl UNCONDITIONAL members of Diskio_drvTypeDef (see ff_gen_drv.h).
+ * The guards below were left over from R0.12; without these defines they expand
+ * to 0, so SD_Driver would omit SD_write/SD_ioctl, leaving disk_write = NULL and
+ * crashing the first f_write with a null-pointer hard fault. Force them on so
+ * the driver table populates all five slots. */
+#ifndef _USE_WRITE
+#define _USE_WRITE 1
+#endif
+#ifndef _USE_IOCTL
+#define _USE_IOCTL 1
+#endif
+
 /* Private defines -----------------------------------------------------------*/
 #define SD_TIMEOUT_MS    5000U
 #define SD_BLOCK_SIZE    512U

@@ -20,35 +20,36 @@
 #include "waveplayer.h"
 
 /* Private define ------------------------------------------------------------*/
+/* Buttons live in a bar occupying the bottom 10% (48px) of the 480px screen */
 #define TOUCH_NEXT_XMIN         325
 #define TOUCH_NEXT_XMAX         365
-#define TOUCH_NEXT_YMIN         212
-#define TOUCH_NEXT_YMAX         252
+#define TOUCH_NEXT_YMIN         432
+#define TOUCH_NEXT_YMAX         480
 
 #define TOUCH_PREVIOUS_XMIN     250
 #define TOUCH_PREVIOUS_XMAX     290
-#define TOUCH_PREVIOUS_YMIN     212
-#define TOUCH_PREVIOUS_YMAX     252
+#define TOUCH_PREVIOUS_YMIN     432
+#define TOUCH_PREVIOUS_YMAX     480
 
 #define TOUCH_STOP_XMIN         170
 #define TOUCH_STOP_XMAX         210
-#define TOUCH_STOP_YMIN         212
-#define TOUCH_STOP_YMAX         252
+#define TOUCH_STOP_YMIN         432
+#define TOUCH_STOP_YMAX         480
 
 #define TOUCH_PAUSE_XMIN        100
 #define TOUCH_PAUSE_XMAX        124
-#define TOUCH_PAUSE_YMIN        212
-#define TOUCH_PAUSE_YMAX        252
+#define TOUCH_PAUSE_YMIN        432
+#define TOUCH_PAUSE_YMAX        480
 
 #define TOUCH_VOL_MINUS_XMIN    20
 #define TOUCH_VOL_MINUS_XMAX    70
-#define TOUCH_VOL_MINUS_YMIN    212
-#define TOUCH_VOL_MINUS_YMAX    252
+#define TOUCH_VOL_MINUS_YMIN    432
+#define TOUCH_VOL_MINUS_YMAX    480
 
 #define TOUCH_VOL_PLUS_XMIN     402
 #define TOUCH_VOL_PLUS_XMAX     452
-#define TOUCH_VOL_PLUS_YMIN     212
-#define TOUCH_VOL_PLUS_YMAX     252
+#define TOUCH_VOL_PLUS_YMIN     432
+#define TOUCH_VOL_PLUS_YMAX     480
 
 /* Private macro -------------------------------------------------------------*/
 /* Private typedef -----------------------------------------------------------*/
@@ -65,7 +66,7 @@ static Point PreviousPoints[] = {{TOUCH_PREVIOUS_XMIN, (TOUCH_PREVIOUS_YMIN+TOUC
                                  {TOUCH_PREVIOUS_XMAX, TOUCH_PREVIOUS_YMAX}};
 
 WAVE_FormatTypeDef WaveFormat;
-FIL WavFile;
+__attribute__((section(".sram2"))) FIL WavFile;
 extern FILELIST_FileTypeDef FileList;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -424,9 +425,10 @@ static uint8_t PlayerInit(uint32_t AudioFreq)
 static void AUDIO_PlaybackDisplayButtons(void)
 {
   BSP_LCD_SetFont(&LCD_LOG_HEADER_FONT);
-  BSP_LCD_ClearStringLine(13);            /* Clear dedicated zone */
-  BSP_LCD_ClearStringLine(14);
-  BSP_LCD_ClearStringLine(15);
+  /* Clear the bottom button bar (bottom 10% of the screen) */
+  BSP_LCD_SetTextColor(LCD_LOG_BACKGROUND_COLOR);
+  BSP_LCD_FillRect(0, TOUCH_STOP_YMIN, BSP_LCD_GetXSize(),
+                   TOUCH_STOP_YMAX - TOUCH_STOP_YMIN);
 
   BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
   BSP_LCD_FillPolygon(PreviousPoints, 3);   /* Previous track icon */
@@ -441,16 +443,16 @@ static void AUDIO_PlaybackDisplayButtons(void)
   BSP_LCD_DrawRect(TOUCH_VOL_MINUS_XMIN, TOUCH_VOL_MINUS_YMIN , /* VOl- rectangle */
                    TOUCH_VOL_MINUS_XMAX - TOUCH_VOL_MINUS_XMIN,
                    TOUCH_VOL_MINUS_YMAX - TOUCH_VOL_MINUS_YMIN);
-  BSP_LCD_DisplayStringAt(24, LINE(14), (uint8_t *)"VOl-", LEFT_MODE);
+  BSP_LCD_DisplayStringAt(24, TOUCH_VOL_MINUS_YMIN + 16, (uint8_t *)"VOl-", LEFT_MODE);
   BSP_LCD_DrawRect(TOUCH_VOL_PLUS_XMIN, TOUCH_VOL_PLUS_YMIN , /* VOl+ rectangle */
                    TOUCH_VOL_PLUS_XMAX - TOUCH_VOL_PLUS_XMIN,
                    TOUCH_VOL_PLUS_YMAX - TOUCH_VOL_PLUS_YMIN);
-  BSP_LCD_DisplayStringAt(404, LINE(14), (uint8_t *)"VOl+", LEFT_MODE);
+  BSP_LCD_DisplayStringAt(404, TOUCH_VOL_PLUS_YMIN + 16, (uint8_t *)"VOl+", LEFT_MODE);
   
   BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
   BSP_LCD_SetFont(&LCD_LOG_TEXT_FONT);
   BSP_LCD_ClearStringLine(15);
-  BSP_LCD_DisplayStringAtLine(15, (uint8_t *)"Use stop button to exit");
+ // BSP_LCD_DisplayStringAtLine(15, (uint8_t *)"Use stop button to exit");
   BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
 }
 

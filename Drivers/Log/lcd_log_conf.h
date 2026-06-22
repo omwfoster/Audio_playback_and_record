@@ -35,7 +35,8 @@
 
 #define     LCD_LOG_HEADER_FONT                   Font16
 #define     LCD_LOG_FOOTER_FONT                   Font12
-#define     LCD_LOG_TEXT_FONT                     Font12
+/* Font16 = 11px wide -> 800/11 = 72 columns on the 800px-wide panel */
+#define     LCD_LOG_TEXT_FONT                     Font16
             
 /* Define the LCD LOG Color  */
 #define     LCD_LOG_BACKGROUND_COLOR              LCD_COLOR_BLACK
@@ -46,9 +47,11 @@
 
 /* Define the cache depth */
 #define     CACHE_SIZE              100
-#define     YWINDOW_SIZE            10
+#define     YWINDOW_SIZE            22
 
-#if (YWINDOW_SIZE > 14)
+/* Rows that fit = (480px screen - 48px header - 48px bottom button bar) / 16px
+ * (Font16), with the window starting at line 4 (YWINDOW_MIN) -> max 23 rows. */
+#if (YWINDOW_SIZE > 23)
   #error "Wrong YWINDOW SIZE"
 #endif
 

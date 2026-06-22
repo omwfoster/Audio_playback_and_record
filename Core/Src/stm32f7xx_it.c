@@ -113,16 +113,57 @@ void NMI_Handler(void)
 /**
   * @brief This function handles Hard fault interrupt.
   */
-void HardFault_Handler(void)
-{
-  /* USER CODE BEGIN HardFault_IRQn 0 */
+/* USER CODE BEGIN HardFault_Reporter */
+/* Captured fault context (also inspectable in the debugger) */
+volatile uint32_t hf_r0, hf_r1, hf_r2, hf_r3, hf_r12, hf_lr, hf_pc, hf_psr;
+volatile uint32_t hf_cfsr, hf_hfsr, hf_bfar, hf_mmfar;
 
-  /* USER CODE END HardFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-    /* USER CODE END W1_HardFault_IRQn 0 */
-  }
+static void hf_putc(char c)
+{
+  while (!(USART1->ISR & USART_ISR_TXE)) { }
+  USART1->TDR = (uint8_t)c;
+}
+static void hf_str(const char *s) { while (*s) hf_putc(*s++); }
+static void hf_hex(uint32_t v)
+{
+  static const char d[] = "0123456789ABCDEF";
+  hf_putc('0'); hf_putc('x');
+  for (int i = 28; i >= 0; i -= 4) hf_putc(d[(v >> i) & 0xF]);
+}
+
+void hard_fault_handler_c(uint32_t *sp)
+{
+  hf_r0 = sp[0]; hf_r1 = sp[1]; hf_r2 = sp[2]; hf_r3 = sp[3];
+  hf_r12 = sp[4]; hf_lr = sp[5]; hf_pc = sp[6]; hf_psr = sp[7];
+  hf_cfsr = SCB->CFSR; hf_hfsr = SCB->HFSR; hf_bfar = SCB->BFAR; hf_mmfar = SCB->MMFAR;
+
+  hf_str("\r\n*** HARDFAULT ***\r\nPC=");  hf_hex(hf_pc);
+  hf_str(" LR=");  hf_hex(hf_lr);
+  hf_str(" PSR="); hf_hex(hf_psr);
+  hf_str("\r\nCFSR="); hf_hex(hf_cfsr);
+  hf_str(" HFSR=");    hf_hex(hf_hfsr);
+  hf_str(" BFAR=");    hf_hex(hf_bfar);   /* faulting data address (if BFARVALID) */
+  hf_str(" MMFAR=");   hf_hex(hf_mmfar);
+  hf_str("\r\nR0="); hf_hex(hf_r0);
+  hf_str(" R1=");    hf_hex(hf_r1);
+  hf_str(" R2=");    hf_hex(hf_r2);
+  hf_str(" R3=");    hf_hex(hf_r3);
+  hf_str(" R12=");   hf_hex(hf_r12);
+  hf_str("\r\n");
+
+  while (1) { }
+}
+/* USER CODE END HardFault_Reporter */
+
+__attribute__((naked)) void HardFault_Handler(void)
+{
+  __asm volatile (
+    "tst   lr, #4               \n"  /* which stack was in use? */
+    "ite   eq                   \n"
+    "mrseq r0, msp              \n"
+    "mrsne r0, psp              \n"
+    "b     hard_fault_handler_c \n"  /* r0 = stacked frame pointer */
+  );
 }
 
 /**
