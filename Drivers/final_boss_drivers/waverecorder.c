@@ -44,7 +44,7 @@
 #define DATA_TAG    0x61746164U  /* "data" */
 
 /* Scratch buffer for BSP_AUDIO_IN internal use */
-#define SCRATCH_BUFF_SIZE  1024
+#define SCRATCH_BUFF_SIZE  512
 
 /* Private variables ---------------------------------------------------------*/
 static int32_t Scratch[SCRATCH_BUFF_SIZE];
@@ -58,8 +58,8 @@ AUDIO_IN_BufferTypeDef BufferCtl_In;
 static FIL WavRecFile;
 
 /* DMA half/full transfer flags set from ISR context */
-static volatile uint32_t DmaRecHalfBuffCplt;
-static volatile uint32_t DmaRecBuffCplt;
+volatile uint32_t DmaRecHalfBuffCplt;
+volatile uint32_t DmaRecBuffCplt;
 
 /* Running byte count of PCM data written (excludes 44-byte header) */
 static volatile uint32_t RecBytesWritten;
@@ -380,10 +380,15 @@ static void AUDIO_REC_DisplayStatus(uint32_t elapsed_ms)
     uint32_t kb = RecBytesWritten / 1024U;
     sprintf((char *)str, "REC  %02lu:%02lu  |  %lu KB written",
             sec / 60U, sec % 60U, kb);
+    /* Line 26 sits in the free strip between the scrolling log window
+     * (lines 4..25) and the bottom button bar (lines 27..29). Drawing inside
+     * the log window (previously line 14) fought with the log scroller:
+     * each scroll erased the status and each status update stomped a log
+     * line, which looked like screen corruption while recording. */
     BSP_LCD_SetFont(&LCD_LOG_TEXT_FONT);
     BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-    BSP_LCD_ClearStringLine(14);
-    BSP_LCD_DisplayStringAtLine(14, str);
+    BSP_LCD_ClearStringLine(26);
+    BSP_LCD_DisplayStringAtLine(26, str);
   }
 }
 

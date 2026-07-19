@@ -196,10 +196,15 @@ void AUDIO_MenuProcess(void)
           status = AUDIO_REC_Process();
           if((status == AUDIO_ERROR_IO) || (status == AUDIO_ERROR_EOF))
           {
+            /* Hold the final recorder output ("Recording stopped. N bytes
+             * written" / "SD write error N") on screen long enough to read
+             * before the text zone is wiped for the menu redraw. */
+            HAL_Delay(3000);
+
             /* Clear the LCD */
             LCD_ClearTextZone();
-            
-            AUDIO_ChangeSelectMode(AUDIO_SELECT_MENU);  
+
+            AUDIO_ChangeSelectMode(AUDIO_SELECT_MENU);
             AudioDemo.state = AUDIO_DEMO_IDLE;
           }
         }

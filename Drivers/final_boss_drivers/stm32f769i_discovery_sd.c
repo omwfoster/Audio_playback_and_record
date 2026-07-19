@@ -140,7 +140,12 @@ uint8_t BSP_SD_Init(void)
     uSdHandle.Init.ClockBypass         = SDMMC_CLOCK_BYPASS_DISABLE;
     uSdHandle.Init.ClockPowerSave      = SDMMC_CLOCK_POWER_SAVE_DISABLE;
     uSdHandle.Init.BusWide             = SDMMC_BUS_WIDE_1B;
-    uSdHandle.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
+    /* Hardware flow control ENABLED: SD transfers run in CPU-fed polling mode
+     * while the DFSDM mic ISRs fire every few ms. If an ISR preempts the feed
+     * loop long enough, the 32-word SDMMC FIFO underruns mid-sector and the
+     * write fails (TX_UNDERRUN -> FR_DISK_ERR). With flow control the SDMMC
+     * pauses SDCLK instead of erroring when the FIFO can't keep up. */
+    uSdHandle.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_ENABLE;
     uSdHandle.Init.ClockDiv            = SDMMC_TRANSFER_CLK_DIV;
 
   /* Msp SD Detect pin initialization */
@@ -347,15 +352,10 @@ uint8_t BSP_SD_Erase(uint32_t StartAddr, uint32_t EndAddr)
   */
 __weak void BSP_SD_MspInit(SD_HandleTypeDef *hsd, void *Params)
 {
-  static DMA_HandleTypeDef dma_rx_handle;
-  static DMA_HandleTypeDef dma_tx_handle;
   GPIO_InitTypeDef gpio_init_structure;
 
   /* Enable SDMMC2 clock */
   __HAL_RCC_SDMMC2_CLK_ENABLE();
-
-  /* Enable DMA2 clocks */
-  __DMAx_TxRx_CLK_ENABLE();
 
   /* Enable GPIOs clock */
   __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -383,65 +383,17 @@ __weak void BSP_SD_MspInit(SD_HandleTypeDef *hsd, void *Params)
   
   /* NVIC configuration for SDMMC2 interrupts */
   HAL_NVIC_SetPriority(SDMMC2_IRQn, 0x0E, 0);
-  HAL_NVIC_EnableIRQ(SDMMC2_IRQn);  
+  HAL_NVIC_EnableIRQ(SDMMC2_IRQn);
 
-  /* Configure DMA Rx parameters */
-  dma_rx_handle.Init.Channel             = SD_DMAx_Rx_CHANNEL;
-  dma_rx_handle.Init.Direction           = DMA_PERIPH_TO_MEMORY;
-  dma_rx_handle.Init.PeriphInc           = DMA_PINC_DISABLE;
-  dma_rx_handle.Init.MemInc              = DMA_MINC_ENABLE;
-  dma_rx_handle.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
-  dma_rx_handle.Init.MemDataAlignment    = DMA_MDATAALIGN_WORD;
-  dma_rx_handle.Init.Mode                = DMA_PFCTRL;
-  dma_rx_handle.Init.Priority            = DMA_PRIORITY_VERY_HIGH;
-  dma_rx_handle.Init.FIFOMode            = DMA_FIFOMODE_ENABLE;
-  dma_rx_handle.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
-  dma_rx_handle.Init.MemBurst            = DMA_MBURST_INC4;
-  dma_rx_handle.Init.PeriphBurst         = DMA_PBURST_INC4;
-
-  dma_rx_handle.Instance = SD_DMAx_Rx_STREAM;
-
-  /* Associate the DMA handle */
-  __HAL_LINKDMA(hsd, hdmarx, dma_rx_handle);
-
-  /* Deinitialize the stream for new transfer */
-  HAL_DMA_DeInit(&dma_rx_handle);
-
-  /* Configure the DMA stream */
-  HAL_DMA_Init(&dma_rx_handle);
-
-  /* Configure DMA Tx parameters */
-  dma_tx_handle.Init.Channel             = SD_DMAx_Tx_CHANNEL;
-  dma_tx_handle.Init.Direction           = DMA_MEMORY_TO_PERIPH;
-  dma_tx_handle.Init.PeriphInc           = DMA_PINC_DISABLE;
-  dma_tx_handle.Init.MemInc              = DMA_MINC_ENABLE;
-  dma_tx_handle.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
-  dma_tx_handle.Init.MemDataAlignment    = DMA_MDATAALIGN_WORD;
-  dma_tx_handle.Init.Mode                = DMA_PFCTRL;
-  dma_tx_handle.Init.Priority            = DMA_PRIORITY_VERY_HIGH;
-  dma_tx_handle.Init.FIFOMode            = DMA_FIFOMODE_ENABLE;
-  dma_tx_handle.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
-  dma_tx_handle.Init.MemBurst            = DMA_MBURST_INC4;
-  dma_tx_handle.Init.PeriphBurst         = DMA_PBURST_INC4;
-
-  dma_tx_handle.Instance = SD_DMAx_Tx_STREAM;
-
-  /* Associate the DMA handle */
-  __HAL_LINKDMA(hsd, hdmatx, dma_tx_handle);
-
-  /* Deinitialize the stream for new transfer */
-  HAL_DMA_DeInit(&dma_tx_handle);
-
-  /* Configure the DMA stream */
-  HAL_DMA_Init(&dma_tx_handle);
-
-  /* NVIC configuration for DMA transfer complete interrupt */
-  HAL_NVIC_SetPriority(SD_DMAx_Rx_IRQn, 0x0F, 0);
-  HAL_NVIC_EnableIRQ(SD_DMAx_Rx_IRQn);
-
-  /* NVIC configuration for DMA transfer complete interrupt */
-  HAL_NVIC_SetPriority(SD_DMAx_Tx_IRQn, 0x0F, 0);
-  HAL_NVIC_EnableIRQ(SD_DMAx_Tx_IRQn);
+  /* NOTE: SD transfers run in POLLING mode (BSP_SD_ReadBlocks / WriteBlocks ->
+     HAL_SD_ReadBlocks / WriteBlocks), so the SD card does NOT use DMA.
+     The previous code here configured DMA2 Stream0 (Rx) and Stream5 (Tx) for the
+     SD with DMA_PFCTRL. Those two streams are ALSO the DFSDM mic streams
+     (TOP_LEFT=DMA2_Stream0, TOP_RIGHT=DMA2_Stream5). Configuring/owning them here
+     forced the mic DMA into PFCTRL/non-circular mode, turning the bounded
+     circular mic capture into an unbounded incrementing write that ran off the
+     end of Scratch and clobbered WavRecFile -> HardFault. The SD DMA setup is
+     removed so DMA2 Stream0/Stream5 belong solely to the DFSDM capture. */
 }
 
 /**
@@ -471,20 +423,8 @@ __weak void BSP_SD_Detect_MspInit(SD_HandleTypeDef *hsd, void *Params)
   */
 __weak void BSP_SD_MspDeInit(SD_HandleTypeDef *hsd, void *Params)
 {
-    static DMA_HandleTypeDef dma_rx_handle;
-    static DMA_HandleTypeDef dma_tx_handle;
-
-    /* Disable NVIC for DMA transfer complete interrupts */
-    HAL_NVIC_DisableIRQ(SD_DMAx_Rx_IRQn);
-    HAL_NVIC_DisableIRQ(SD_DMAx_Tx_IRQn);
-
-    /* Deinitialize the stream for new transfer */
-    dma_rx_handle.Instance = SD_DMAx_Rx_STREAM;
-    HAL_DMA_DeInit(&dma_rx_handle);
-
-    /* Deinitialize the stream for new transfer */
-    dma_tx_handle.Instance = SD_DMAx_Tx_STREAM;
-    HAL_DMA_DeInit(&dma_tx_handle);
+    /* SD uses polling mode (no DMA). DMA2 Stream0/Stream5 belong to the DFSDM
+       microphones, so they must NOT be de-initialised here. */
 
     /* Disable NVIC for SDIO interrupts */
     HAL_NVIC_DisableIRQ(SDIO_IRQn);

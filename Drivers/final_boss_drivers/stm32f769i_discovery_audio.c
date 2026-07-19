@@ -1593,27 +1593,27 @@ void HAL_SAI_RxCpltCallback(SAI_HandleTypeDef *hsai)
   BSP_AUDIO_IN_TransferComplete_CallBack();
 }
 
-/**
-  * @brief  User callback when record buffer is filled.
-  * @retval None
-  */
-__weak void BSP_AUDIO_IN_TransferComplete_CallBack(void)
-{
-  /* This function should be implemented by the user application.
-     It is called into this driver when the current buffer is filled
-     to prepare the next buffer pointer and its size. */
-}
-
-/**
-  * @brief  Manages the DMA Half Transfer complete event.
-  * @retval None
-  */
-__weak void BSP_AUDIO_IN_HalfTransfer_CallBack(void)
-{ 
-  /* This function should be implemented by the user application.
-     It is called into this driver when the current buffer is filled
-     to prepare the next buffer pointer and its size. */
-}
+///**
+//  * @brief  User callback when record buffer is filled.
+//  * @retval None
+//  */
+//__weak void BSP_AUDIO_IN_TransferComplete_CallBack(void)
+//{
+//  /* This function should be implemented by the user application.
+//     It is called into this driver when the current buffer is filled
+//     to prepare the next buffer pointer and its size. */
+//}
+//
+///**
+//  * @brief  Manages the DMA Half Transfer complete event.
+//  * @retval None
+//  */
+//__weak void BSP_AUDIO_IN_HalfTransfer_CallBack(void)
+//{
+//  /* This function should be implemented by the user application.
+//     It is called into this driver when the current buffer is filled
+//     to prepare the next buffer pointer and its size. */
+//}
 
 /**
   * @brief  Audio IN Error callback function.

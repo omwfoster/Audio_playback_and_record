@@ -100,7 +100,7 @@ typedef struct _LCD_LOG_line
                             printf(__VA_ARGS__);\
                             LCD_LineColor = LCD_LOG_DEFAULT_COLOR
 
-#define  LCD_UsrLog(...)    LCD_LineColor = LCD_LOG_TEXT_COLOR;\
+#define  LCD_UsrLog(...)    LCD_LineColor = LCD_COLOR_RED;\
                             printf(__VA_ARGS__);\
 
 

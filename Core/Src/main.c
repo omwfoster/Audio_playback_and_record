@@ -63,13 +63,13 @@ char SDCard_Path[4] = "0:/";
 /* Private variables ---------------------------------------------------------*/
 
 extern __attribute__((section(".dma_buffers")))
-  AUDIO_IN_BufferTypeDef BufferCtl;
+  AUDIO_IN_BufferTypeDef BufferCtl_In;
 
-volatile uint32_t DmaTopLeftRecHalfCplt;
-volatile uint32_t DmaTopLeftRecCplt;
-volatile uint32_t DmaTopRighRecHalfCplt;
-volatile uint32_t DmaTopRightRecCplt;
+
 DMA_HandleTypeDef hdma_usart1_tx;
+
+extern volatile uint32_t DmaRecHalfBuffCplt;
+extern volatile uint32_t DmaRecBuffCplt;
 
 uint32_t PlaybackStarted = 0;
 /* Private function prototypes -----------------------------------------------*/
@@ -139,11 +139,11 @@ int main(void) {
 
 	AudioStream_Init(&huart1);
 
-	HAL_UART_Transmit(&huart1, (uint8_t *)"BOOT 921600\r\n", 13, 100);
+
 
 	AUDIO_InitApplication();
 
-	HAL_UART_Transmit(&huart1, (uint8_t *)"BOOT 921600\r\n", 13, 100);
+
 
 	/* Init TS module */
 	BSP_TS_Init(800, 480);
@@ -175,16 +175,16 @@ int main(void) {
 			HandleCommand(cmd);
 		}
 
-		if (DmaTopLeftRecHalfCplt == 1) {
-			AudioStream_SendRawSamples(&BufferCtl.pcm_buff[0],
-					PCM_BUFFER_SIZE / 2);
-			//uart_send((uint8_t*) str, 34);
-			DmaTopLeftRecHalfCplt = 0;
-		} else if (DmaTopLeftRecCplt == 1) {
-			DmaTopLeftRecCplt = 0;
-			AudioStream_SendRawSamples(
-					&BufferCtl.pcm_buff[((PCM_BUFFER_SIZE / 2))],
-					PCM_BUFFER_SIZE / 2);
+		/* NOTE: live UART streaming was removed here. It read BufferCtl, which
+		 * the mic DMA never fills (the capture lands in BufferCtl_In), and it
+		 * raced AUDIO_REC_Process for the DmaRec* flags. The recorder writes the
+		 * captured PCM straight to SD. To stream over UART again, do it from a
+		 * dedicated path on BufferCtl_In without consuming the recorder's flags. */
+
+		if (stream_status.mode == STREAM_MODE_RAW
+				&& stream_status.is_streaming) {
+			AudioStream_SendRawSamples(BufferCtl_In.pcm_buff,
+					AUDIO_IN_PCM_BUFFER_SIZE);
 		}
 
 		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
@@ -845,9 +845,15 @@ void MPU_Config(void) {
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 	/* Enables the MPU */
 
+	/* Region 1: all internal SRAM (DTCM + SRAM1 + SRAM2 = 512KB) as non-cacheable.
+	 * Base MUST be 512KB-aligned, so it starts at 0x20000000 (NOT 0x20020000 --
+	 * that base isn't 512KB-aligned and the MPU would silently mask it to
+	 * 0x20000000 anyway). The DTCM portion is overridden by the higher-numbered
+	 * Region 2 below (regions overlap -> highest number wins), so only SRAM1/2
+	 * (0x20020000-0x20080000, the .dma_buffers) end up non-cacheable. */
 	MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-	MPU_InitStruct.BaseAddress = 0x20020000;
-	MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;  // was 32KB
+	MPU_InitStruct.BaseAddress = 0x20000000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
 	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 	MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
 	MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
@@ -897,17 +903,22 @@ void MPU_Config(void) {
 	MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE; /* device memory */
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
-	/* Region 5: SDRAM — normal memory, write-back, write-allocate */
+	/* Region 5: SDRAM — WRITE-THROUGH (TEX=0,C=1,B=0), not write-back.
+	 * The LTDC framebuffer lives here and the LTDC scans SDRAM directly,
+	 * bypassing the D-cache. With write-back, CPU text draws linger in the
+	 * cache and the panel shows stale pixels until eviction -> intermittent
+	 * screen corruption. Write-through makes every CPU write land in SDRAM
+	 * immediately, keeping the panel coherent (matches ST's reference BSP). */
 	MPU_InitStruct.Number = MPU_REGION_NUMBER5;
 	MPU_InitStruct.BaseAddress = 0xC0000000;
 	MPU_InitStruct.Size = MPU_REGION_SIZE_16MB;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
 	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
 	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
 	MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-	MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE; /* write-back */
+	MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE; /* write-through */
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
 	HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
@@ -922,12 +933,11 @@ void MPU_Config(void) {
 
 void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
 
-	DmaTopLeftRecCplt = 1;
-	DmaTopLeftRecHalfCplt = 0;
 
-	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[PCM_BUFFER_SIZE / 2];
-	BufferCtl.wr_state = BUFFER_FULL;
-	BufferCtl.offset = 0;
+
+	BufferCtl_In.pcm_ptr = &BufferCtl_In.pcm_buff[PCM_BUFFER_SIZE / 2];
+	BufferCtl_In.wr_state = BUFFER_FULL;
+	BufferCtl_In.offset = 0;
 
 	/* Hand the second half to the SD recorder (no-op unless recording) */
 	AUDIO_REC_TransferComplete_Callback();
@@ -941,12 +951,11 @@ void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
  */
 void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
 
-	DmaTopLeftRecCplt = 0;
-	DmaTopLeftRecHalfCplt = 1;
 
-	BufferCtl.pcm_ptr = &BufferCtl.pcm_buff[0];
-	BufferCtl.wr_state = BUFFER_HALF;
-	BufferCtl.offset = 0;
+
+	BufferCtl_In.pcm_ptr = &BufferCtl_In.pcm_buff[0];
+	BufferCtl_In.wr_state = BUFFER_HALF;
+	BufferCtl_In.offset = 0;
 
 	/* Hand the first half to the SD recorder (no-op unless recording) */
 	AUDIO_REC_HalfTransfer_Callback();

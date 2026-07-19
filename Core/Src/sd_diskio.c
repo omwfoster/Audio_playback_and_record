@@ -11,9 +11,16 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
+#include <stdio.h>
 #include "ff_gen_drv.h"
 #include "stm32f769i_discovery_sd.h"
 #include "sd_diskio.h"
+
+/* BSP SD handle (defined in stm32f769i_discovery_sd.c) — used to report the
+ * precise SDMMC error bits when a transfer fails. Key values:
+ *   0x002 DATA_CRC_FAIL   0x008 DATA_TIMEOUT   0x010 TX_UNDERRUN
+ *   0x020 RX_OVERRUN      0x4000000 WRITE_PROT_VIOLATION */
+extern SD_HandleTypeDef uSdHandle;
 
 /* FatFs R0.15 removed the _USE_WRITE / _USE_IOCTL switches and makes disk_write
  * and disk_ioctl UNCONDITIONAL members of Diskio_drvTypeDef (see ff_gen_drv.h).
@@ -120,9 +127,17 @@ DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
     while (BSP_SD_GetCardState() != MSD_OK)
     {
       if (HAL_GetTick() - t > SD_TIMEOUT_MS)
+      {
+        printf("SD_write: card busy timeout (sector %lu)\r\n", (uint32_t)sector);
         return RES_ERROR;
+      }
     }
     res = RES_OK;
+  }
+  else
+  {
+    printf("SD_write: HAL err=0x%08lX sector=%lu n=%u\r\n",
+           uSdHandle.ErrorCode, (uint32_t)sector, count);
   }
   return res;
 }
