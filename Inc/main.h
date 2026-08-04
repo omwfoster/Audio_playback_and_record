@@ -41,6 +41,11 @@ extern "C" {
 #include "ff.h"
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
+#include "tft.h"
+#include "touchpad.h"
+#include "lvgl.h"
+#include "ui.h"
+
 
 /* USER CODE END Includes */
 

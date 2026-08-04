@@ -1,2 +1,0 @@
-../Core/Src/bsp_sdram.c:10:6:BSP_SDRAM_MspInit	56	static
-../Core/Src/bsp_sdram.c:69:19:BSP_SDRAM_Init	32	static

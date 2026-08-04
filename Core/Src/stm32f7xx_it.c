@@ -25,6 +25,7 @@
 
 
 extern UART_HandleTypeDef huart1;
+extern DSI_HandleTypeDef hdsi_discovery;
 
 /* USER CODE END Includes */
 
@@ -323,6 +324,10 @@ void DMA2_Stream5_IRQHandler(void)
 
    HAL_DMA_IRQHandler(hAudioInTopRightFilter.hdmaReg);
 
+}
+
+void DSI_IRQHandler(void){
+  HAL_DSI_IRQHandler(&hdsi_discovery);
 }
 
 

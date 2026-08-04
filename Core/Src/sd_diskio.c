@@ -13,8 +13,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "ff_gen_drv.h"
-#include "stm32f769i_discovery_sd.h"
 #include "sd_diskio.h"
+#include "../../Drivers/disco_bsp/stm32f769i_discovery_sd.h"
 
 /* BSP SD handle (defined in stm32f769i_discovery_sd.c) — used to report the
  * precise SDMMC error bits when a transfer fails. Key values:

@@ -141,12 +141,20 @@ int main(void) {
 
 
 
-	AUDIO_InitApplication();
+	//AUDIO_InitApplication();
+	AUDIO_PLAYER_Init();
+	lv_init();
+
+	tft_init();
+	touchpad_init();
+
+	ui_init();
 
 
 
-	/* Init TS module */
-	BSP_TS_Init(800, 480);
+
+
+
 
 	/* Link SD disk I/O driver and FORCE-mount (opt=1) so the boot sector is
 	 * actually read now. This separates the READ path (mount) from the file
@@ -206,8 +214,10 @@ int main(void) {
 			}
 		}
 
+		lv_task_handler();
+
 		/* AUDIO Menu Process */
-		AUDIO_MenuProcess();
+		//AUDIO_MenuProcess();  // old menu with disco bsp function calls
 		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */

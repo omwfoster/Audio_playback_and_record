@@ -21,9 +21,9 @@
 #define  __LCD_LOG_CONF_H
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f769i_discovery_lcd.h"
-#include "stm32f769i_discovery.h"
 #include <stdio.h>
+#include "../disco_bsp/stm32f769i_discovery.h"
+#include "../disco_bsp/stm32f769i_discovery_lcd.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
