@@ -4,29 +4,68 @@
 // Project name: SquareLine_Project
 
 #include "ui.h"
+
 #include "waveplayer.h"
 #include "waverecorder.h"
 
-void button_play(lv_event_t * e)
+
+AUDIO_DEMO_StateMachine     AudioDemo;
+AUDIO_PLAYBACK_StateTypeDef AudioState;
+
+AUDIO_ErrorTypeDef  status;
+TS_StateTypeDef  TS_State;
+
+
+
+
+void record_evt(lv_event_t * e)
 {
 	// Your code here
-}
 
-void button_stop(lv_event_t * e)
-{
-	// Your code here
-}
-
-
-
-void record_button_pressed(lv_event_t * e)
-{
-	// Your code here
-    AUDIO_StorageInit();
-
-    /* Configure the audio recorder: sampling frequency, bits-depth, number of channels */
-    if(AUDIO_REC_Start() == AUDIO_ERROR_IO)
+    if(appli_state == APPLICATION_READY)
     {
+      if(AudioState == AUDIO_STATE_IDLE)
+      {
+        /* Start Playing */
+        AudioState = AUDIO_STATE_INIT;
 
+        /* Clear the LCD */
+
+
+        /* Init storage */
+        AUDIO_StorageInit();
+
+        /* Configure the audio recorder: sampling frequency, bits-depth, number of channels */
+        if(AUDIO_REC_Start() == AUDIO_ERROR_IO)
+        {
+
+          AudioDemo.state = AUDIO_DEMO_IDLE;
+        }
+      }
+      else /* Not idle */
+      {
+        status = AUDIO_REC_Process();
+        if((status == AUDIO_ERROR_IO) || (status == AUDIO_ERROR_EOF))
+        {
+          /* Hold the final recorder output ("Recording stopped. N bytes
+           * written" / "SD write error N") on screen long enough to read
+           * before the text zone is wiped for the menu redraw. */
+          HAL_Delay(3000);
+
+          /* Clear the LCD */
+
+          AudioDemo.state = AUDIO_DEMO_IDLE;
+        }
+      }
     }
+    else
+    {
+      AudioDemo.state = AUDIO_DEMO_WAIT;
+    }
+// Your code here
+}
+
+void test1(lv_event_t * e)
+{
+	// Your code here
 }

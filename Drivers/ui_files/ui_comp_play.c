@@ -13,22 +13,20 @@ lv_obj_t *cui_play;
 cui_play = lv_button_create(comp_parent);
 lv_obj_set_width( cui_play, 100);
 lv_obj_set_height( cui_play, 50);
-lv_obj_set_x( cui_play, -305 );
-lv_obj_set_y( cui_play, 160 );
 lv_obj_set_align( cui_play, LV_ALIGN_CENTER );
 lv_obj_add_flag( cui_play, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags
 lv_obj_remove_flag( cui_play, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-lv_obj_t *cui_Label1;
-cui_Label1 = lv_label_create(cui_play);
-lv_obj_set_width( cui_Label1, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( cui_Label1, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_align( cui_Label1, LV_ALIGN_CENTER );
-lv_label_set_text(cui_Label1,"text");
+lv_obj_t *cui_Label5;
+cui_Label5 = lv_label_create(cui_play);
+lv_obj_set_width( cui_Label5, LV_SIZE_CONTENT);  /// 1
+lv_obj_set_height( cui_Label5, LV_SIZE_CONTENT);   /// 1
+lv_obj_set_align( cui_Label5, LV_ALIGN_CENTER );
+lv_label_set_text(cui_Label5,"text");
 
 lv_obj_t ** children = lv_malloc(sizeof(lv_obj_t *) * _UI_COMP_PLAY_NUM);
 children[UI_COMP_PLAY_PLAY] = cui_play;
-children[UI_COMP_PLAY_LABEL1] = cui_Label1;
+children[UI_COMP_PLAY_LABEL5] = cui_Label5;
 lv_obj_add_event_cb(cui_play, get_component_child_event_cb, LV_EVENT_GET_COMP_CHILD, children);
 lv_obj_add_event_cb(cui_play, del_component_child_event_cb, LV_EVENT_DELETE, children);
 ui_comp_play_create_hook(cui_play);

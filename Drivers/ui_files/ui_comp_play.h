@@ -14,7 +14,7 @@ extern "C" {
 
 // COMPONENT play
 #define UI_COMP_PLAY_PLAY 0
-#define UI_COMP_PLAY_LABEL1 1
+#define UI_COMP_PLAY_LABEL5 1
 #define _UI_COMP_PLAY_NUM 2
 lv_obj_t *ui_play_create(lv_obj_t *comp_parent);
 

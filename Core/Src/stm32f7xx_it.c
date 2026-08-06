@@ -262,6 +262,8 @@ void SysTick_Handler(void)
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
 
+  lv_tick_inc(1);
+
   /* USER CODE END SysTick_IRQn 1 */
 }
 

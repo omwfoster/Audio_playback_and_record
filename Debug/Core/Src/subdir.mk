@@ -8,7 +8,6 @@ C_SRCS += \
 ../Core/Src/ai_logging.c \
 ../Core/Src/explorer.c \
 ../Core/Src/main.c \
-../Core/Src/menu.c \
 ../Core/Src/sd_diskio.c \
 ../Core/Src/stm32f7xx_hal_msp.c \
 ../Core/Src/stm32f7xx_it.c \
@@ -20,7 +19,6 @@ OBJS += \
 ./Core/Src/ai_logging.o \
 ./Core/Src/explorer.o \
 ./Core/Src/main.o \
-./Core/Src/menu.o \
 ./Core/Src/sd_diskio.o \
 ./Core/Src/stm32f7xx_hal_msp.o \
 ./Core/Src/stm32f7xx_it.o \
@@ -32,7 +30,6 @@ C_DEPS += \
 ./Core/Src/ai_logging.d \
 ./Core/Src/explorer.d \
 ./Core/Src/main.d \
-./Core/Src/menu.d \
 ./Core/Src/sd_diskio.d \
 ./Core/Src/stm32f7xx_hal_msp.d \
 ./Core/Src/stm32f7xx_it.d \
@@ -48,7 +45,7 @@ Core/Src/%.o Core/Src/%.su Core/Src/%.cyclo: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/ai_logging.cyclo ./Core/Src/ai_logging.d ./Core/Src/ai_logging.o ./Core/Src/ai_logging.su ./Core/Src/explorer.cyclo ./Core/Src/explorer.d ./Core/Src/explorer.o ./Core/Src/explorer.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/menu.cyclo ./Core/Src/menu.d ./Core/Src/menu.o ./Core/Src/menu.su ./Core/Src/sd_diskio.cyclo ./Core/Src/sd_diskio.d ./Core/Src/sd_diskio.o ./Core/Src/sd_diskio.su ./Core/Src/stm32f7xx_hal_msp.cyclo ./Core/Src/stm32f7xx_hal_msp.d ./Core/Src/stm32f7xx_hal_msp.o ./Core/Src/stm32f7xx_hal_msp.su ./Core/Src/stm32f7xx_it.cyclo ./Core/Src/stm32f7xx_it.d ./Core/Src/stm32f7xx_it.o ./Core/Src/stm32f7xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f7xx.cyclo ./Core/Src/system_stm32f7xx.d ./Core/Src/system_stm32f7xx.o ./Core/Src/system_stm32f7xx.su
+	-$(RM) ./Core/Src/ai_logging.cyclo ./Core/Src/ai_logging.d ./Core/Src/ai_logging.o ./Core/Src/ai_logging.su ./Core/Src/explorer.cyclo ./Core/Src/explorer.d ./Core/Src/explorer.o ./Core/Src/explorer.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/sd_diskio.cyclo ./Core/Src/sd_diskio.d ./Core/Src/sd_diskio.o ./Core/Src/sd_diskio.su ./Core/Src/stm32f7xx_hal_msp.cyclo ./Core/Src/stm32f7xx_hal_msp.d ./Core/Src/stm32f7xx_hal_msp.o ./Core/Src/stm32f7xx_hal_msp.su ./Core/Src/stm32f7xx_it.cyclo ./Core/Src/stm32f7xx_it.d ./Core/Src/stm32f7xx_it.o ./Core/Src/stm32f7xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f7xx.cyclo ./Core/Src/system_stm32f7xx.d ./Core/Src/system_stm32f7xx.o ./Core/Src/system_stm32f7xx.su
 
 .PHONY: clean-Core-2f-Src
 

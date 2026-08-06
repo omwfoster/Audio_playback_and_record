@@ -10,9 +10,8 @@
 extern "C" {
 #endif
 
-void button_play(lv_event_t * e);
-void button_stop(lv_event_t * e);
-void record_button_pressed(lv_event_t * e);
+void test1(lv_event_t * e);
+void record_evt(lv_event_t * e);
 
 #ifdef __cplusplus
 } /*extern "C"*/
