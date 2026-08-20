@@ -11,7 +11,7 @@
 
 
 #include "stdint.h"
-#include <audio_stream_dsp/audio_stream_tone.h>
+#include "audio_stream_tone.h"
 #include "arm_math.h"
 
 
@@ -144,6 +144,9 @@ void apply_window_q15(q15_t *pcm_samples, q15_t *windowed_samples,
 
 
 void dc_norm(int16_t * mag_block,uint32_t length);
+
+void deinterlace_stereo_pcm(uint16_t *src, uint16_t *dstL, uint16_t *dstR, uint32_t samples);
+
 
 
 #endif // FFT_PROCESSING_H

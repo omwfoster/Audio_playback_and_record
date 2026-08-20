@@ -5,7 +5,7 @@
  *      Author: oliverfoster
  */
 
-#include "audio_stream_dsp/audio_stream.h"
+#include <audio_stream.h>
 #include "ai_logging.h"
 #include "string.h"
 #include "stdio.h"
@@ -68,7 +68,7 @@ void AudioStream_Init(UART_HandleTypeDef *huart) {
 	stream_status.mode = STREAM_MODE_RAW;
 	stream_status.is_streaming = true;
 	stream_status.sample_rate = 16000;
-	stream_status.fft_size = FFT_SIZE;
+	stream_status.fft_size = FFT_BLOCK_SIZE;
 	stream_status.packets_sent = 0;
 	stream_status.decimation_factor = 0;
 
@@ -283,7 +283,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 __attribute__((section(".dma_buffers")))
-static uint16_t uart_tx_audio_buf[PCM_BUFFER_SIZE];
+static uint16_t uart_tx_audio_buf[2048];
 
 void AudioStream_SendRawSamples(uint16_t *samples, uint16_t num_samples) {
     if (!stream_status.is_streaming && stream_status.mode != STREAM_MODE_RAW)

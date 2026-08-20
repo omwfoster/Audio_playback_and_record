@@ -181,7 +181,6 @@ RM := rm -rf
 -include Drivers/CMSIS/DSP/Source/CommonTables/subdir.mk
 -include Drivers/CMSIS/DSP/Source/BasicMathFunctions/subdir.mk
 -include Core/Startup/subdir.mk
--include Core/Src/audio_stream_dsp/subdir.mk
 -include Core/Src/subdir.mk
 -include objects.mk
 

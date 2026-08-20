@@ -72,11 +72,8 @@ static void     WriteWavHeader(FIL *fp, uint32_t sample_rate,
                                uint16_t channels, uint16_t bits,
                                uint32_t data_bytes);
 static void     FinaliseWavHeader(FIL *fp, uint32_t data_bytes);
-static void     AUDIO_REC_DisplayButtons(void);
 static void     AUDIO_REC_DisplayStatus(uint32_t elapsed_ms);
-static uint8_t  TouchInRegion(uint16_t x, uint16_t y,
-                              uint16_t xmin, uint16_t xmax,
-                              uint16_t ymin, uint16_t ymax);
+
 
 /* Public functions ----------------------------------------------------------*/
 
@@ -148,7 +145,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
                       AUDIO_IN_PCM_BUFFER_SIZE);
 
   /* Draw record-screen UI */
-  AUDIO_REC_DisplayButtons();
+
   LCD_UsrLog("\nRecording to %s ...\n", REC_WAVE_NAME);
 
   /* Switch application state so the main loop calls AUDIO_REC_Process() */
@@ -184,34 +181,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
     AudioState  = AUDIO_STATE_PLAY; /* reuse PLAY state as "running" sentinel */
   }
 
-  /* ---------- Touch-screen controls ---------- */
-  BSP_TS_GetState(&ts);
-  if (ts.touchDetected == 1)
-  {
-    uint16_t x = ts.touchX[0];
-    uint16_t y = ts.touchY[0];
 
-    if (TouchInRegion(x, y, TOUCH_STOP_XMIN, TOUCH_STOP_XMAX,
-                             TOUCH_STOP_YMIN, TOUCH_STOP_YMAX))
-    {
-      /* User pressed Stop */
-      ret = AUDIO_ERROR_EOF;
-      goto done;
-    }
-
-    if (TouchInRegion(x, y, TOUCH_PAUSE_XMIN, TOUCH_PAUSE_XMAX,
-                             TOUCH_PAUSE_YMIN, TOUCH_PAUSE_YMAX))
-    {
-      RecPaused ^= 1U;
-      if (RecPaused)
-        BSP_AUDIO_IN_Pause();
-      else
-        BSP_AUDIO_IN_Resume();
-
-      /* Debounce: wait for finger lift */
-      do { BSP_TS_GetState(&ts); } while (ts.touchDetected > 0);
-    }
-  }
 
   /* ---------- Time limit ---------- */
   uint32_t elapsed_ms = HAL_GetTick() - t_start_ms;
@@ -336,34 +306,6 @@ static void FinaliseWavHeader(FIL *fp, uint32_t data_bytes)
   f_lseek(fp, f_size(fp));  /* restore pointer to EOF */
 }
 
-/**
-  * @brief  Draw the record-screen button outlines on the LCD.
-  */
-static void AUDIO_REC_DisplayButtons(void)
-{
-  BSP_LCD_SetFont(&LCD_LOG_HEADER_FONT);
-  /* Clear the bottom button bar (bottom 10% of the screen) */
-  BSP_LCD_SetTextColor(LCD_LOG_BACKGROUND_COLOR);
-  BSP_LCD_FillRect(0, TOUCH_STOP_YMIN, BSP_LCD_GetXSize(),
-                   TOUCH_STOP_YMAX - TOUCH_STOP_YMIN);
-  BSP_LCD_SetTextColor(LCD_COLOR_RED);
-
-  /* Stop button — solid square */
-  BSP_LCD_FillRect(TOUCH_STOP_XMIN, TOUCH_STOP_YMIN,
-                   TOUCH_STOP_XMAX  - TOUCH_STOP_XMIN,
-                   TOUCH_STOP_YMAX  - TOUCH_STOP_YMIN);
-
-  /* Pause button — two vertical bars */
-  BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
-  BSP_LCD_FillRect(TOUCH_PAUSE_XMIN,      TOUCH_PAUSE_YMIN,
-                   8, TOUCH_PAUSE_YMAX - TOUCH_PAUSE_YMIN);
-  BSP_LCD_FillRect(TOUCH_PAUSE_XMIN + 12, TOUCH_PAUSE_YMIN,
-                   8, TOUCH_PAUSE_YMAX - TOUCH_PAUSE_YMIN);
-
-  BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
-  BSP_LCD_SetFont(&LCD_LOG_TEXT_FONT);
-  BSP_LCD_DisplayStringAtLine(15, (uint8_t *)"[PAUSE]  [STOP]  — touch to control");
-}
 
 /**
   * @brief  Update the elapsed-time display (called every process loop).
@@ -392,17 +334,6 @@ static void AUDIO_REC_DisplayStatus(uint32_t elapsed_ms)
   }
 }
 
-/**
-  * @brief  Return 1 if (x,y) falls inside the given rectangular region.
-  */
-static uint8_t TouchInRegion(uint16_t x, uint16_t y,
-                              uint16_t xmin, uint16_t xmax,
-                              uint16_t ymin, uint16_t ymax)
-{
-  return (x >= xmin && x <= xmax && y >= ymin && y <= ymax) ? 1U : 0U;
-}
-
-/* DMA callbacks -------------------------------------------------------------*/
 
 
 

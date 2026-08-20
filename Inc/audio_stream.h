@@ -12,7 +12,7 @@ extern "C" {
 #include "stm32f7xx_hal.h"
 
 
-#define FFT_SIZE	1024
+
 
 // Command bytes from PC (matching device_commands.h)
 #define CMD_START_RAW_STREAM    0x10

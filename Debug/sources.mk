@@ -23,7 +23,6 @@ C_DEPS :=
 # Every subdirectory with source files must be described here
 SUBDIRS := \
 Core/Src \
-Core/Src/audio_stream_dsp \
 Core/Startup \
 Drivers/CMSIS/DSP/Source/BasicMathFunctions \
 Drivers/CMSIS/DSP/Source/CommonTables \

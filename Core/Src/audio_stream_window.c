@@ -2,7 +2,7 @@
 // window_functions_q15.c
 ////////////////////////
 
-#include <audio_stream_dsp/audio_stream_window.h>
+#include <audio_stream_window.h>
 #include "arm_math.h"
 
 // Q15 representation of pi: π ≈ 3.14159 → 32767 * (π/π) won't work

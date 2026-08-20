@@ -5,7 +5,7 @@
  *      Author: oliverfoster
  */
 
-#include <audio_stream_dsp/audio_stream_tone.h>
+#include <audio_stream_tone.h>
 #include "arm_math.h"
 
 const int16_t test_440[] = {

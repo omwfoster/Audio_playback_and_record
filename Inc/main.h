@@ -55,7 +55,6 @@ extern "C" {
 
 
 #define FFT_BLOCK_SIZE					  128
-#define PCM_BUFFER_SIZE                   ((uint32_t)512)
 #define BIT_RESOLUTION      			  ((uint8_t)16)
 #define BYES_PER_SAMPLE					  2U
 #define CHANNEL_NBR						  2U
@@ -63,8 +62,8 @@ extern "C" {
 
 /* Exported Defines ----------------------------------------------------------*/
 #define AUDIO_OUT_BUFFER_SIZE                      8192
-#define AUDIO_IN_PCM_BUFFER_SIZE                   4*2304 /* buffer size in half-word */
-
+//#define AUDIO_IN_PCM_BUFFER_SIZE                   4*2304 /* buffer size in half-word */
+#define AUDIO_IN_PCM_BUFFER_SIZE FFT_BLOCK_SIZE * 2 * CHANNEL_NBR
 #define FILEMGR_LIST_DEPDTH                        24
 #define FILEMGR_FILE_NAME_SIZE                     40
 #define FILEMGR_FULL_PATH_SIZE                     256
@@ -108,6 +107,7 @@ typedef enum {
   AUDIO_STATE_FORWARD,
   AUDIO_STATE_BACKWARD,
   AUDIO_STATE_STOP,
+  AUDIO_DEMO_FFT,
   AUDIO_STATE_PAUSE,
   AUDIO_STATE_RESUME,
   AUDIO_STATE_VOLUME_UP,
@@ -169,7 +169,10 @@ typedef enum {
   AUDIO_ERROR_INVALID_VALUE,
 }AUDIO_ErrorTypeDef;
 
-extern AUDIO_ApplicationTypeDef appli_state;
+/* DECLARATIONS ONLY — definitions live in main.c. Without `extern` these are
+   tentative definitions in every TU that includes main.h, which breaks the
+   link under GCC 10+ (-fno-common). */
+extern AUDIO_ApplicationTypeDef * h_appli_state;
 extern AUDIO_PLAYBACK_StateTypeDef AudioState;
 extern FATFS SDCard_FatFs;
 extern char SDCard_Path[4];

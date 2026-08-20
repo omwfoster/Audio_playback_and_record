@@ -58,12 +58,7 @@ __attribute__((section(".dma_buffers")))
  AUDIO_IN_BufferTypeDef BufferCtl;
 static int16_t FilePos = 0;
 static __IO uint32_t uwVolume = 70;
-static Point NextPoints[] = {{TOUCH_NEXT_XMIN, TOUCH_NEXT_YMIN},
-                             {TOUCH_NEXT_XMAX, (TOUCH_NEXT_YMIN+TOUCH_NEXT_YMAX)/2},
-                             {TOUCH_NEXT_XMIN, TOUCH_NEXT_YMAX}};
-static Point PreviousPoints[] = {{TOUCH_PREVIOUS_XMIN, (TOUCH_PREVIOUS_YMIN+TOUCH_PREVIOUS_YMAX)/2},
-                                 {TOUCH_PREVIOUS_XMAX, TOUCH_PREVIOUS_YMIN},
-                                 {TOUCH_PREVIOUS_XMAX, TOUCH_PREVIOUS_YMAX}};
+
 
 WAVE_FormatTypeDef WaveFormat;
 __attribute__((section(".sram2"))) FIL WavFile;
@@ -417,44 +412,7 @@ static uint8_t PlayerInit(uint32_t AudioFreq)
   } 
 }
 
-/**
-  * @brief  Display interface touch screen buttons
-  * @param  None
-  * @retval None
-  */
-static void AUDIO_PlaybackDisplayButtons(void)
-{
-  BSP_LCD_SetFont(&LCD_LOG_HEADER_FONT);
-  /* Clear the bottom button bar (bottom 10% of the screen) */
-  BSP_LCD_SetTextColor(LCD_LOG_BACKGROUND_COLOR);
-  BSP_LCD_FillRect(0, TOUCH_STOP_YMIN, BSP_LCD_GetXSize(),
-                   TOUCH_STOP_YMAX - TOUCH_STOP_YMIN);
 
-  BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
-  BSP_LCD_FillPolygon(PreviousPoints, 3);   /* Previous track icon */
-  BSP_LCD_FillRect(TOUCH_PREVIOUS_XMIN, TOUCH_PREVIOUS_YMIN , 10, TOUCH_PREVIOUS_YMAX - TOUCH_PREVIOUS_YMIN);
-  BSP_LCD_FillPolygon(NextPoints, 3);       /* Next track icon */
-  BSP_LCD_FillRect(TOUCH_NEXT_XMAX-9, TOUCH_NEXT_YMIN , 10, TOUCH_NEXT_YMAX - TOUCH_NEXT_YMIN);
-  BSP_LCD_FillRect(TOUCH_PAUSE_XMIN, TOUCH_PAUSE_YMIN , 15, TOUCH_PAUSE_YMAX - TOUCH_PAUSE_YMIN);    /* Pause rectangles */
-  BSP_LCD_FillRect(TOUCH_PAUSE_XMIN + 20, TOUCH_PAUSE_YMIN, 15, TOUCH_PAUSE_YMAX - TOUCH_PAUSE_YMIN);
-  BSP_LCD_FillRect(TOUCH_STOP_XMIN, TOUCH_STOP_YMIN , /* Stop rectangle */
-                   TOUCH_STOP_XMAX - TOUCH_STOP_XMIN,
-                   TOUCH_STOP_YMAX - TOUCH_STOP_YMIN);
-  BSP_LCD_DrawRect(TOUCH_VOL_MINUS_XMIN, TOUCH_VOL_MINUS_YMIN , /* VOl- rectangle */
-                   TOUCH_VOL_MINUS_XMAX - TOUCH_VOL_MINUS_XMIN,
-                   TOUCH_VOL_MINUS_YMAX - TOUCH_VOL_MINUS_YMIN);
-  BSP_LCD_DisplayStringAt(24, TOUCH_VOL_MINUS_YMIN + 16, (uint8_t *)"VOl-", LEFT_MODE);
-  BSP_LCD_DrawRect(TOUCH_VOL_PLUS_XMIN, TOUCH_VOL_PLUS_YMIN , /* VOl+ rectangle */
-                   TOUCH_VOL_PLUS_XMAX - TOUCH_VOL_PLUS_XMIN,
-                   TOUCH_VOL_PLUS_YMAX - TOUCH_VOL_PLUS_YMIN);
-  BSP_LCD_DisplayStringAt(404, TOUCH_VOL_PLUS_YMIN + 16, (uint8_t *)"VOl+", LEFT_MODE);
-  
-  BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
-  BSP_LCD_SetFont(&LCD_LOG_TEXT_FONT);
-  BSP_LCD_ClearStringLine(15);
- // BSP_LCD_DisplayStringAtLine(15, (uint8_t *)"Use stop button to exit");
-  BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
-}
 
 /**
   * @brief  Test touch screen state and modify audio state machine according to that

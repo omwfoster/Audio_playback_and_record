@@ -15,14 +15,20 @@ extern void ui_Screen2_screen_init(void);
 extern void ui_Screen2_screen_destroy(void);
 extern lv_obj_t *ui_Screen2;
 extern lv_obj_t *ui_Container2;
-extern lv_obj_t *ui_Container4;
+extern lv_obj_t *ui_TabView2;
+extern lv_obj_t *ui_spectrum;
+extern lv_obj_t *ui_Chart4;
+extern lv_obj_t *ui_Chart4_Xaxis;
+extern lv_obj_t *ui_Chart4_Yaxis1;
+extern lv_obj_t *ui_Chart4_Yaxis2;
+extern lv_obj_t *ui_console;
+extern lv_obj_t *ui_TextArea1;
 extern lv_obj_t *ui_Container5;
 extern void ui_event_play_play( lv_event_t * e);
 extern lv_obj_t *ui_play;
 extern void ui_event_rec_play( lv_event_t * e);
 extern lv_obj_t *ui_rec;
 extern lv_obj_t *ui_stop;
-extern lv_obj_t *ui_Button3;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
