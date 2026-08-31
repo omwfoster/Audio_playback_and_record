@@ -23,6 +23,8 @@ void record_evt(lv_event_t * e)
 	// Your code here
 
 	AudioDemo.state = AUDIO_DEMO_IN;
+	//AudioState = AUDIO_STATE_RECORD; //this is set in the
+	appli_state = APPLICATION_READY;
 
 // Your code here
 }

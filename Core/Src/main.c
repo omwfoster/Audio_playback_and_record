@@ -250,6 +250,7 @@ int main(void) {
 					DmaRecBuffCplt = 0;
 				}
 
+
 				if (appli_state == APPLICATION_READY) {
 					if (AudioState == AUDIO_STATE_IDLE) {
 						/* Start Playing */
@@ -258,8 +259,12 @@ int main(void) {
 						/* Configure the audio recorder: sampling frequency, bits-depth, number of channels */
 						if (AUDIO_REC_Start() == AUDIO_ERROR_IO) {
 							AudioDemo.state = AUDIO_DEMO_IDLE;
+							AudioState = AUDIO_STATE_IDLE;
 						}
-					} else /* Not idle */
+
+
+					}
+					else if (AudioState ==  AUDIO_STATE_RECORD) /* Not idle */
 					{
 						status = AUDIO_REC_Process();
 						if ((status == AUDIO_ERROR_IO)
