@@ -3,10 +3,11 @@
 // LVGL version: 9.1.0
 // Project name: SquareLine_Project
 
-#include "ui.h"
+
 
 #include "waveplayer.h"
 #include "waverecorder.h"
+#include "app_state.h"
 
 
 extern AUDIO_DEMO_StateMachine     AudioDemo;
@@ -16,17 +17,13 @@ extern AUDIO_ApplicationTypeDef appli_state;
 TS_StateTypeDef  TS_State;
 
 
-
-
 void record_evt(lv_event_t * e)
 {
-	// Your code here
-
-	AudioDemo.state = AUDIO_DEMO_IN;
-	//AudioState = AUDIO_STATE_RECORD; //this is set in the
-	appli_state = APPLICATION_READY;
-
-// Your code here
+    if (App_Capturing()) {
+        App_PostEvent(EVT_RECORD_STOP, 0);
+    } else {
+        App_PostEvent(EVT_RECORD_START, 0);
+    }
 }
 
 void test1(lv_event_t * e)

@@ -25,6 +25,7 @@
 #include "ai_logging.h"
 #include "waveplayer.h"
 #include "waverecorder.h"
+#include "app_state.h"
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -50,8 +51,8 @@ extern __attribute__((section(".dma_buffers")))q15_t mag_bins[FFT_BLOCK_SIZE];
 
 extern __attribute__((section(".dma_buffers")))q15_t mag_bins_output[FFT_BLOCK_SIZE];
 
-uint16_t pcm_left[FFT_BLOCK_SIZE];
-uint16_t pcm_right[FFT_BLOCK_SIZE];
+uint16_t pcm_left[FFT_BLOCK_SIZE*2];
+uint16_t pcm_right[FFT_BLOCK_SIZE*2];
 // AI Logging
 
 /* USER CODE END PTD */
@@ -110,7 +111,7 @@ static void CPU_CACHE_Enable(void);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
-static void AUDIO_InitApplication(void);
+
 
 /* USER CODE END PFP */
 
@@ -171,132 +172,23 @@ int main(void) {
 	tft_init();
 	touchpad_init();
 
-	ui_init();
 
-	/* Link SD disk I/O driver and FORCE-mount (opt=1) so the boot sector is
-	 * actually read now. This separates the READ path (mount) from the file
-	 * create WRITE path, and prints the FRESULT so we can see exactly which
-	 * stage fails. */
-	if (FATFS_LinkDriver(&SD_Driver, SDCard_Path) == 0) {
-		FRESULT fr = f_mount(&SDCard_FatFs, (TCHAR const*) SDCard_Path, 1);
-		if (fr == FR_OK) {
-			appli_state = APPLICATION_READY;
-		} else {
 
-		}
-	} else {
 
-	}
 
-	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+	    uint8_t cmd = AudioStream_ProcessCommand();
+	    if (cmd != 0) {
+	        HandleCommand(cmd);      /* now just posts events */
+	    }
 
-		uint8_t cmd = AudioStream_ProcessCommand();
-		if (cmd != 0) {
-			HandleCommand(cmd);
-		}
+	    App_Process();
 
-		/* NOTE: live UART streaming was removed here. It read BufferCtl, which
-		 * the mic DMA never fills (the capture lands in BufferCtl_In), and it
-		 * raced AUDIO_REC_Process for the DmaRec* flags. The recorder writes the
-		 * captured PCM straight to SD. To stream over UART again, do it from a
-		 * dedicated path on BufferCtl_In without consuming the recorder's flags. */
-
-		if (stream_status.mode == STREAM_MODE_RAW
-				&& stream_status.is_streaming) {
-			AudioStream_SendRawSamples(BufferCtl_In.pcm_buff,
-			AUDIO_IN_PCM_BUFFER_SIZE);
-		}
-
-		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin); // Toggle LED
-
-		/* Poll SD card presence; update application state */
-		if (BSP_SD_IsDetected() == SD_PRESENT) {
-			if (appli_state == APPLICATION_IDLE) {
-				/* Card was re-inserted — remount */
-				if (f_mount(&SDCard_FatFs, (TCHAR const*) SDCard_Path, 0)
-						== FR_OK) {
-					appli_state = APPLICATION_READY;
-					LCD_DbgLog("INFO : SD card re-mounted.\n");
-				}
-			}
-		} else {
-			if (appli_state == APPLICATION_READY) {
-				appli_state = APPLICATION_DISCONNECT;
-				LCD_ErrLog("SD card removed!\n");
-			}
-		}
-
-		/* USER CODE BEGIN WHILE_BODY_APPLI_STATE */
-		/* Moved in from after the while(1) loop below — that code was dead
-		 * (unreachable, since the loop above never breaks/returns). Restored
-		 * here so the audio demo / FFT / SD-disconnect handling actually runs
-		 * each iteration. */
-		if (appli_state == APPLICATION_READY) {
-			switch (AudioDemo.state) {
-			case AUDIO_DEMO_IN:
-
-				if (DmaRecHalfBuffCplt == 1) {
-					deinterlace_stereo_pcm(&BufferCtl_In.pcm_buff[0], pcm_left,
-							pcm_right, AUDIO_IN_PCM_BUFFER_SIZE / 2);
-					DmaRecHalfBuffCplt = 0;
-				} else if (DmaRecBuffCplt == 1) {
-					deinterlace_stereo_pcm(
-							&BufferCtl_In.pcm_buff[AUDIO_IN_PCM_BUFFER_SIZE / 2],
-							pcm_left, pcm_right, AUDIO_IN_PCM_BUFFER_SIZE / 2);
-					DmaRecBuffCplt = 0;
-				}
-
-
-				if (appli_state == APPLICATION_READY) {
-					if (AudioState == AUDIO_STATE_IDLE) {
-						/* Start Playing */
-						AudioState = AUDIO_STATE_INIT;
-
-						/* Configure the audio recorder: sampling frequency, bits-depth, number of channels */
-						if (AUDIO_REC_Start() == AUDIO_ERROR_IO) {
-							AudioDemo.state = AUDIO_DEMO_IDLE;
-							AudioState = AUDIO_STATE_IDLE;
-						}
-
-
-					}
-					else if (AudioState ==  AUDIO_STATE_RECORD) /* Not idle */
-					{
-						status = AUDIO_REC_Process();
-						if ((status == AUDIO_ERROR_IO)
-								|| (status == AUDIO_ERROR_EOF)) {
-							/* Clear the LCD */
-							AudioDemo.state = AUDIO_DEMO_IDLE;
-						}
-					}
-				} else {
-					AudioDemo.state = AUDIO_DEMO_WAIT;
-				}
-				break;
-
-			case AUDIO_DEMO_WAIT:
-			case AUDIO_DEMO_PLAYBACK:
-			default:
-				break;
-			}
-		}
-
-		if (appli_state == APPLICATION_DISCONNECT) {
-			appli_state = APPLICATION_IDLE;
-			BSP_AUDIO_OUT_Stop(CODEC_PDWN_SW);
-		}
-
-		lv_task_handler();
-		/* USER CODE END WHILE_BODY_APPLI_STATE */
-
-		/* AUDIO Menu Process */
-		//AUDIO_MenuProcess();  // old menu with disco bsp function calls
-		/* USER CODE BEGIN 3 */
-
+	    HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin);
+	    lv_task_handler();
 	}
 	/* USER CODE END 3 */
 }
@@ -991,38 +883,7 @@ int main(void) {
 
 	}
 
-	/**
-	 * @brief  Calculates the remaining file size and new position of the pointer.
-	 * @param  None
-	 * @retval None
-	 */
 
-	void BSP_AUDIO_IN_TransferComplete_CallBack(void) {
-
-		BufferCtl_In.pcm_ptr = &BufferCtl_In.pcm_buff[AUDIO_IN_PCM_BUFFER_SIZE
-				/ 2];
-		BufferCtl_In.wr_state = BUFFER_FULL;
-		BufferCtl_In.offset = 0;
-
-		/* Hand the second half to the SD recorder (no-op unless recording) */
-		AUDIO_REC_TransferComplete_Callback();
-
-	}
-
-	/**
-	 * @brief  Manages the DMA Half Transfer complete interrupt.
-	 * @param  None
-	 * @retval None
-	 */
-	void BSP_AUDIO_IN_HalfTransfer_CallBack(void) {
-
-		BufferCtl_In.pcm_ptr = &BufferCtl_In.pcm_buff[0];
-		BufferCtl_In.wr_state = BUFFER_HALF;
-		BufferCtl_In.offset = 0;
-
-		/* Hand the first half to the SD recorder (no-op unless recording) */
-		AUDIO_REC_HalfTransfer_Callback();
-	}
 
 	static void HandleCommand(uint8_t cmd) {
 		switch (cmd) {
