@@ -3,30 +3,30 @@
 // LVGL version: 9.1.0
 // Project name: SquareLine_Project
 
+#include "ui.h"
 
-
-#include "waveplayer.h"
-#include "waverecorder.h"
-#include "app_state.h"
-
-
-extern AUDIO_DEMO_StateMachine     AudioDemo;
-extern AUDIO_PLAYBACK_StateTypeDef AudioState;
-extern AUDIO_ApplicationTypeDef appli_state;
-
-TS_StateTypeDef  TS_State;
-
-
-void record_evt(lv_event_t * e)
+void switch_tab(lv_event_t * e)
 {
-    if (App_Capturing()) {
-        App_PostEvent(EVT_RECORD_STOP, 0);
-    } else {
-        App_PostEvent(EVT_RECORD_START, 0);
-    }
-}
 
-void test1(lv_event_t * e)
-{
-	// Your code here
+	    lv_obj_t * tabview = lv_event_get_target(e); // Gets the Tabview object
+
+	    // Get the index of the newly activated tab (starts at 0)
+	    uint16_t active_tab = lv_tabview_get_tab_act(tabview);
+
+	    // Perform actions based on which tab was opened
+	    switch(active_tab) {
+	        case 0:
+	            // Actions for Tab 1 (e.g. Home screen)
+	            break;
+	        case 1:
+	            // Actions for Tab 2 (e.g. Settings screen)
+	            break;
+	        case 2:
+	            // Actions for Tab 3 (e.g. Analytics screen)
+	            break;
+	        default:
+	            break;
+	    }
+
+
 }

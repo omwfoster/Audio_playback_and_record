@@ -9,6 +9,8 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include Drivers/ui_files/screens/subdir.mk
+-include Drivers/ui_files/components/subdir.mk
 -include Drivers/ui_files/subdir.mk
 -include Drivers/lvgl/src/widgets/win/subdir.mk
 -include Drivers/lvgl/src/widgets/tileview/subdir.mk

@@ -88,14 +88,13 @@ bool ui_main_layout_create(lv_obj_t * parent, ui_main_layout_t * out)
     return true;
 }
 
-lv_obj_t * ui_main_layout_add_chip(lv_obj_t * panel, const char * text, bool selected)
+/**
+ * @brief Shared chip construction used by both ui_main_layout_add_chip and
+ *        ui_main_layout_add_button. Adds a hairline separator above the
+ *        chip if it is not the first child of the panel.
+ */
+static lv_obj_t * create_chip_base(lv_obj_t * panel, const char * text, bool selected)
 {
-    if (panel == NULL || text == NULL) {
-        return NULL;
-    }
-
-    /* Hairline separator above every chip after the first, so the panel
-     * reads as a dense divided list rather than a stack of boxed buttons. */
     uint32_t existing = lv_obj_get_child_count(panel);
     if (existing > 0) {
         lv_obj_t * sep = lv_obj_create(panel);
@@ -119,6 +118,28 @@ lv_obj_t * ui_main_layout_add_chip(lv_obj_t * panel, const char * text, bool sel
         lv_obj_set_style_text_color(label, UI_COLOR_BG, 0);
     }
 
+    return chip;
+}
+
+lv_obj_t * ui_main_layout_add_chip(lv_obj_t * panel, const char * text, bool selected)
+{
+    if (panel == NULL || text == NULL) {
+        return NULL;
+    }
+    return create_chip_base(panel, text, selected);
+}
+
+lv_obj_t * ui_main_layout_add_button(lv_obj_t * panel, const char * text,
+                                      lv_event_cb_t event_cb, void * user_data)
+{
+    if (panel == NULL || text == NULL) {
+        return NULL;
+    }
+
+    lv_obj_t * chip = create_chip_base(panel, text, false);
+    if (event_cb != NULL) {
+        lv_obj_add_event_cb(chip, event_cb, LV_EVENT_CLICKED, user_data);
+    }
     return chip;
 }
 

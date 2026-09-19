@@ -1,0 +1,11 @@
+SET(SOURCES ui_comp_play.c
+    ui_comp.c
+    ui_Screen2.c
+    ui_theme_manager.c
+    ui_themes.c
+    ui.c
+    ui_comp_hook.c
+    ui_helpers.c
+    ui_events.c)
+
+add_library(ui ${SOURCES})

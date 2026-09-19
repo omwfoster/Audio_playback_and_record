@@ -61,11 +61,34 @@ static FIL WavRecFile;
 volatile uint32_t DmaRecHalfBuffCplt;
 volatile uint32_t DmaRecBuffCplt;
 
+/* ADDED: incremented whenever a DMA half/full-complete callback fires while
+ * the previous one of the same kind hasn't been consumed yet by
+ * AUDIO_REC_Process() -- i.e. AUDIO_REC_Process() isn't being called often
+ * enough to keep up with the DMA, and a half-buffer of audio was silently
+ * overwritten before it got written to the WAV file. */
+volatile uint32_t DmaRecPacketDropped;
+
 /* Running byte count of PCM data written (excludes 44-byte header) */
 static volatile uint32_t RecBytesWritten;
 
 /* Recording active / paused flags */
 static volatile uint8_t  RecPaused;
+
+/* ADDED: external stop request (e.g. from an LVGL button handler running
+ * outside this file's own touch-zone logic). Checked each AUDIO_REC_Process()
+ * iteration alongside the existing time-limit check. */
+static volatile uint8_t  RecStopRequested;
+
+/* ADDED: true from a successful AUDIO_REC_Start() until AUDIO_REC_Process()
+ * finalises and closes the file (EOF or IO error). Lets external UI code
+ * (e.g. a record button) query real state instead of tracking its own
+ * separate flag that could drift out of sync if the recording ends on its
+ * own (time limit) without the UI having been told to stop it. */
+static volatile uint8_t  RecActive;
+
+/* ADDED: registered via AUDIO_REC_SetStateCallback(), fired on every
+ * RecActive transition so UI code can react without polling. */
+static AUDIO_REC_StateCallback_t RecStateCallback = NULL;
 
 /* Private function prototypes -----------------------------------------------*/
 static void     WriteWavHeader(FIL *fp, uint32_t sample_rate,
@@ -84,6 +107,10 @@ static void     AUDIO_REC_DisplayStatus(uint32_t elapsed_ms);
   */
 void AUDIO_REC_HalfTransfer_Callback(void)
 {
+  if (DmaRecHalfBuffCplt != 0) /* ADDED: previous half wasn't consumed yet */
+  {
+    DmaRecPacketDropped++;
+  }
   DmaRecHalfBuffCplt = 1;
 }
 
@@ -93,6 +120,10 @@ void AUDIO_REC_HalfTransfer_Callback(void)
   */
 void AUDIO_REC_TransferComplete_Callback(void)
 {
+  if (DmaRecBuffCplt != 0) /* ADDED: previous half wasn't consumed yet */
+  {
+    DmaRecPacketDropped++;
+  }
   DmaRecBuffCplt = 1;
 }
 
@@ -107,6 +138,8 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
   DmaRecBuffCplt     = 0;
   RecBytesWritten    = 0;
   RecPaused          = 0;
+  RecStopRequested   = 0; /* ADDED */
+  DmaRecPacketDropped = 0; /* ADDED */
   BufferCtl_In.pcm_ptr  = 0;
   BufferCtl_In.wr_state = BUFFER_EMPTY;
   BufferCtl_In.offset   = 0;
@@ -151,7 +184,58 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
   /* Switch application state so the main loop calls AUDIO_REC_Process() */
   AudioState = AUDIO_STATE_RECORD;
 
+  RecActive = 1; /* ADDED */
+
+  if (RecStateCallback != NULL) /* ADDED */
+  {
+    RecStateCallback(1);
+  }
+
   return AUDIO_ERROR_NONE;
+}
+
+/**
+  * @brief  ADDED: Register a callback fired on every RecActive transition.
+  *         Pass NULL to unregister.
+  */
+void AUDIO_REC_SetStateCallback(AUDIO_REC_StateCallback_t cb)
+{
+  RecStateCallback = cb;
+}
+
+/**
+  * @brief  ADDED: Request that the active recording stop at the next
+  *         AUDIO_REC_Process() call. Safe to call from another task/ISR
+  *         context (single-byte flag write); the actual file finalisation
+  *         and close still happen inside AUDIO_REC_Process() on the main
+  *         loop, not synchronously from this call.
+  */
+void AUDIO_REC_RequestStop(void)
+{
+  RecStopRequested = 1;
+}
+
+/**
+  * @brief  ADDED: Query whether a recording is currently active (from
+  *         successful AUDIO_REC_Start() until AUDIO_REC_Process() finalises
+  *         and closes the file). Use this instead of tracking a separate
+  *         flag in UI code, so a time-limit-triggered stop is reflected
+  *         correctly even if nothing called AUDIO_REC_RequestStop().
+  */
+uint8_t AUDIO_REC_IsActive(void)
+{
+  return RecActive;
+}
+
+/**
+  * @brief  ADDED: Number of DMA half/full-transfer callbacks that fired
+  *         before AUDIO_REC_Process() consumed the previous one -- i.e. lost
+  *         half-buffers of audio due to processing falling behind the DMA.
+  *         Non-zero after a recording means the resulting WAV has gaps.
+  */
+uint32_t AUDIO_REC_GetDroppedCount(void)
+{
+  return DmaRecPacketDropped;
 }
 
 /**
@@ -187,7 +271,9 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
   uint32_t elapsed_ms = HAL_GetTick() - t_start_ms;
   AUDIO_REC_DisplayStatus(elapsed_ms);
 
-  if (elapsed_ms >= (uint32_t)DEFAULT_TIME_REC * 1000U)
+  /* MODIFIED: also end the recording if an external stop was requested,
+   * not just on hitting the time limit. */
+  if (elapsed_ms >= (uint32_t)DEFAULT_TIME_REC * 1000U || RecStopRequested)
   {
     ret = AUDIO_ERROR_EOF;
     goto done;
@@ -253,6 +339,13 @@ done:
     LCD_UsrLog("Recording stopped. %lu bytes written.\n", RecBytesWritten);
 
   AudioState = AUDIO_STATE_IDLE;
+  RecActive = 0; /* ADDED */
+
+  if (RecStateCallback != NULL) /* ADDED */
+  {
+    RecStateCallback(0);
+  }
+
   return ret;
 }
 

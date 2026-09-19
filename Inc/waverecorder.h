@@ -15,7 +15,7 @@
   *
   ******************************************************************************
   */
-  
+
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __WAVERECORDER_H
 #define __WAVERECORDER_H
@@ -25,6 +25,12 @@
 
 /* Exported Defines ----------------------------------------------------------*/
 /* Exported types ------------------------------------------------------------*/
+/* ADDED: fired synchronously from AUDIO_REC_Start()/AUDIO_REC_Process()
+   whenever RecActive changes -- lets UI code react without polling.
+   Called from whatever context calls those two functions (typically your
+   main loop) -- not from an ISR. */
+typedef void (*AUDIO_REC_StateCallback_t)(uint8_t active);
+
 /* Exported constants --------------------------------------------------------*/
 /* Defines for the Audio recording process */
 #define DEFAULT_TIME_REC                      30  /* Recording time in second (default: 30s) */
@@ -44,5 +50,14 @@ AUDIO_ErrorTypeDef AUDIO_PLAYER_Init(void);
 void AUDIO_REC_HalfTransfer_Callback(void);
 void AUDIO_REC_TransferComplete_Callback(void);
 
-#endif /* __WAVERECORDER_H */
+/* ADDED for LVGL record-button integration */
+void    AUDIO_REC_RequestStop(void);
+uint8_t AUDIO_REC_IsActive(void);
+uint32_t AUDIO_REC_GetDroppedCount(void);
 
+/* ADDED: register a callback fired on every RecActive transition (push,
+   not poll). Pass NULL to unregister. Only one callback slot -- if you need
+   more than one listener, have your single callback fan out to others. */
+void AUDIO_REC_SetStateCallback(AUDIO_REC_StateCallback_t cb);
+
+#endif /* __WAVERECORDER_H */

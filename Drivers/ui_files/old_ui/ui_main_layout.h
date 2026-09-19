@@ -49,6 +49,26 @@ bool ui_main_layout_create(lv_obj_t * parent, ui_main_layout_t * out);
 lv_obj_t * ui_main_layout_add_chip(lv_obj_t * panel, const char * text, bool selected);
 
 /**
+ * @brief Add a clickable chip that fires event_cb on LV_EVENT_CLICKED.
+ *
+ * Same visual treatment and hairline-separator placement as
+ * ui_main_layout_add_chip, but for controls that trigger an action
+ * (transport buttons, toggles) rather than pure view-selector state.
+ * The chip's own visual "active" state (e.g. amber fill while recording)
+ * is the caller's responsibility -- toggle it from inside event_cb via
+ * lv_obj_add_style()/lv_obj_remove_style() with &ui_style_chip_selected.
+ *
+ * @param panel      left_panel or right_panel from a ui_main_layout_t.
+ * @param text       chip label text.
+ * @param event_cb   callback fired on LV_EVENT_CLICKED. May be NULL (chip
+ *                    is created but inert).
+ * @param user_data  opaque pointer forwarded to event_cb via lv_event_get_user_data().
+ * @return the created chip object.
+ */
+lv_obj_t * ui_main_layout_add_button(lv_obj_t * panel, const char * text,
+                                      lv_event_cb_t event_cb, void * user_data);
+
+/**
  * @brief Update the monospace metadata strip text (coordinates/values/etc.).
  * @param layout   pointer previously filled by ui_main_layout_create.
  * @param fmt      printf-style format string.

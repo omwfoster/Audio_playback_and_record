@@ -3,14 +3,20 @@
 // LVGL version: 9.1.0
 // Project name: SquareLine_Project
 
-#ifndef _UI_EVENTS_H
-#define _UI_EVENTS_H
+#ifndef _UI_COMP_PLAY_H
+#define _UI_COMP_PLAY_H
+
+#include "../ui.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void switch_tab(lv_event_t * e);
+// COMPONENT play
+#define UI_COMP_PLAY_PLAY 0
+#define UI_COMP_PLAY_LABEL5 1
+#define _UI_COMP_PLAY_NUM 2
+lv_obj_t *ui_play_create(lv_obj_t *comp_parent);
 
 #ifdef __cplusplus
 } /*extern "C"*/

@@ -39,7 +39,7 @@ ENTRY(Reset_Handler)
 _estack = ORIGIN(DTCM) + LENGTH(DTCM); /* end of "RAM" Ram type memory */
 
 _Min_Heap_Size = 0x200; /* required amount of heap */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_Min_Stack_Size = 0x1000; /* required amount of stack */
 
 
 /*  SRAM1  (xrw) : ORIGIN = 0x20020000, LENGTH = 368K   /* DMA-accessible */

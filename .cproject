@@ -103,7 +103,7 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry excluding="Src/menu.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
-						<entry excluding="Components/Fonts|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/demos|CMSIS/DSP/DSP_Lib_TestSuite|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/zephyr|CMSIS/RTOS2|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/tests|CMSIS/Core/Template|CMSIS/RTOS|lvgl/tests|CMSIS/NN|lvgl/zephyr|CMSIS/DSP/Examples|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/examples" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry excluding="ui_files/old_ui|Components/Fonts|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/demos|CMSIS/DSP/DSP_Lib_TestSuite|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/zephyr|CMSIS/RTOS2|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/tests|CMSIS/Core/Template|CMSIS/RTOS|lvgl/tests|CMSIS/NN|lvgl/zephyr|CMSIS/DSP/Examples|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/examples" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -179,7 +179,7 @@
 					</folderInfo>
 					<sourceEntries>
 						<entry excluding="Src/menu.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
-						<entry excluding="Components/Fonts|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/demos|CMSIS/DSP/DSP_Lib_TestSuite|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/zephyr|CMSIS/RTOS2|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/tests|CMSIS/Core/Template|CMSIS/RTOS|lvgl/tests|CMSIS/NN|lvgl/zephyr|CMSIS/DSP/Examples|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/examples" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry excluding="ui_files/old_ui|Components/Fonts|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/demos|CMSIS/DSP/DSP_Lib_TestSuite|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/zephyr|CMSIS/RTOS2|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/tests|CMSIS/Core/Template|CMSIS/RTOS|lvgl/tests|CMSIS/NN|lvgl/zephyr|CMSIS/DSP/Examples|lvgl-40fb6ba26c5e3b326df75c6c39ada36c4afb6c0a/examples" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

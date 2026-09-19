@@ -1,10 +1,8 @@
-SET(SOURCES ui_comp_play.c
-    ui_comp.c
-    ui_Screen2.c
-    ui_theme_manager.c
-    ui_themes.c
+SET(SOURCES components/ui_comp_play.c
+    components/ui_comp.c
+    screens/ui_Screen1.c
     ui.c
-    ui_comp_hook.c
+    components/ui_comp_hook.c
     ui_helpers.c
     ui_events.c)
 
