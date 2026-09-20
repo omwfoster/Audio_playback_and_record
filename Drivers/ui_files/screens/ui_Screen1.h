@@ -27,6 +27,7 @@ extern lv_obj_t *ui_play2;
 extern lv_obj_t *ui_Spinbox1;
 extern lv_obj_t *ui_Switch1;
 extern lv_obj_t *ui_Consoletab;
+extern void ui_event_TextArea1( lv_event_t * e);
 extern lv_obj_t *ui_TextArea1;
 // CUSTOM VARIABLES
 

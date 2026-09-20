@@ -939,7 +939,7 @@ void Default_Handler_C(void) {
 
 /* USER CODE END 0 */
 
-static void record_btn_event_cb(lv_event_t *e) {
+void start_sample(lv_event_t *e) {
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}

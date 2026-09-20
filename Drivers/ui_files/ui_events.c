@@ -4,6 +4,7 @@
 // Project name: SquareLine_Project
 
 #include "ui.h"
+#include "main.h"
 
 void switch_tab(lv_event_t * e)
 {
@@ -30,3 +31,5 @@ void switch_tab(lv_event_t * e)
 
 
 }
+
+
