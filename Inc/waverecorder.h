@@ -35,6 +35,15 @@ typedef void (*AUDIO_REC_StateCallback_t)(uint8_t active);
 /* Defines for the Audio recording process */
 #define DEFAULT_TIME_REC                      30  /* Recording time in second (default: 30s) */
 
+/* ADDED: number of DMA half-buffers discarded at the start of every
+ * recording before writes to the WAV file begin, to skip the MEMS mic's
+ * internal AC-coupling settling transient (and any brief DFSDM filter
+ * settling). At AUDIO_IN_PCM_BUFFER_SIZE=9216 half-words stereo 16kHz,
+ * each half is ~144ms -- 14 half-buffers is ~2s. Tune by ear/scope: if the
+ * recording still starts with an audible/visible ramp, increase this; if
+ * recordings feel like they're missing too much of the start, decrease it. */
+#define AUDIO_REC_WARMUP_HALFBUFFERS           14U
+
 #define REC_WAVE_NAME "Wave.wav"
 
 #define REC_SAMPLE_LENGTH   (DEFAULT_TIME_REC * DEFAULT_AUDIO_IN_FREQ * DEFAULT_AUDIO_IN_CHANNEL_NBR * 2)

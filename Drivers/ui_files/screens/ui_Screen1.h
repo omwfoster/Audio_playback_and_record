@@ -29,7 +29,11 @@ extern lv_obj_t *ui_Switch1;
 extern lv_obj_t *ui_Consoletab;
 extern void ui_event_TextArea1( lv_event_t * e);
 extern lv_obj_t *ui_TextArea1;
+extern lv_obj_t *ui_Panel5;
+extern lv_obj_t *ui_pktlabel;
+extern lv_obj_t *ui_dropped;
 // CUSTOM VARIABLES
+extern lv_obj_t *uic_Chart1;
 
 #ifdef __cplusplus
 } /*extern "C"*/
