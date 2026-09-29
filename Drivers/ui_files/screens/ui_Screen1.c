@@ -5,8 +5,7 @@
 
 #include "../ui.h"
 
-lv_obj_t *uic_Chart1;
-lv_obj_t *ui_Screen1 = NULL;lv_obj_t *ui_TabView1 = NULL;lv_obj_t *ui_Spectrotab = NULL;lv_obj_t *ui_Chart1 = NULL;lv_obj_t *ui_Chart1_Xaxis = NULL;lv_obj_t *ui_Chart1_Yaxis1 = NULL;lv_obj_t *ui_Chart1_Yaxis2 = NULL;lv_obj_t *ui_Panel4 = NULL;lv_obj_t *ui_play1 = NULL;lv_obj_t *ui_play2 = NULL;lv_obj_t *ui_Spinbox1 = NULL;lv_obj_t *ui_Switch1 = NULL;lv_obj_t *ui_Consoletab = NULL;lv_obj_t *ui_TextArea1 = NULL;lv_obj_t *ui_Panel5 = NULL;lv_obj_t *ui_pktlabel = NULL;lv_obj_t *ui_dropped = NULL;
+lv_obj_t *ui_Screen1 = NULL;lv_obj_t *ui_TabView1 = NULL;lv_obj_t *ui_Spectrotab = NULL;lv_obj_t *ui_Consoletab = NULL;lv_obj_t *ui_TextArea1 = NULL;lv_obj_t *ui_Button1 = NULL;lv_obj_t *ui_Button2 = NULL;
 // event funtions
 void ui_event_TabView1( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -16,11 +15,19 @@ if ( event_code == LV_EVENT_VALUE_CHANGED) {
 }
 }
 
-void ui_event_TextArea1( lv_event_t * e) {
+void ui_event_Button1( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
 if ( event_code == LV_EVENT_CLICKED) {
-      start_sample( e );
+      start_capture( e );
+}
+}
+
+void ui_event_Button2( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+if ( event_code == LV_EVENT_CLICKED) {
+      stop_capture( e );
 }
 }
 
@@ -57,96 +64,6 @@ lv_obj_set_style_pad_bottom(ui_Spectrotab, 10, LV_PART_MAIN| LV_STATE_DEFAULT);
 lv_obj_set_style_pad_row(ui_Spectrotab, 10, LV_PART_MAIN| LV_STATE_DEFAULT);
 lv_obj_set_style_pad_column(ui_Spectrotab, 10, LV_PART_MAIN| LV_STATE_DEFAULT);
 
-ui_Chart1 = lv_chart_create(ui_Spectrotab);
-lv_obj_set_width( ui_Chart1, lv_pct(79));
-lv_obj_set_height( ui_Chart1, lv_pct(100));
-lv_obj_set_x( ui_Chart1, -18 );
-lv_obj_set_y( ui_Chart1, -17 );
-lv_obj_set_align( ui_Chart1, LV_ALIGN_CENTER );
-lv_obj_add_flag( ui_Chart1, LV_OBJ_FLAG_OVERFLOW_VISIBLE );   /// Flags
-lv_obj_remove_flag( ui_Chart1, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
-lv_obj_add_flag( ui_Chart1, LV_OBJ_FLAG_OVERFLOW_VISIBLE );    //make scales visible - Should it be forced to True? 
-//lv_obj_remove_flag( ui_Chart1, LV_OBJ_FLAG_SCROLLABLE );    //no chart-zoom in LVGL9 - Shouldn't it be forced to False?
-lv_chart_set_type( ui_Chart1, LV_CHART_TYPE_BAR);
-lv_chart_set_point_count( ui_Chart1, 70);
-
-ui_Chart1_Xaxis = lv_scale_create( ui_Chart1 );
-lv_scale_set_mode( ui_Chart1_Xaxis, LV_SCALE_MODE_HORIZONTAL_BOTTOM );
-lv_obj_set_size( ui_Chart1_Xaxis, lv_pct(100), 50 );
-lv_obj_set_align( ui_Chart1_Xaxis, LV_ALIGN_BOTTOM_MID );
-lv_obj_set_y( ui_Chart1_Xaxis, 50 + lv_obj_get_style_pad_bottom(ui_Chart1,LV_PART_MAIN) + lv_obj_get_style_border_width(ui_Chart1,LV_PART_MAIN) );
-lv_obj_set_style_line_width( ui_Chart1_Xaxis, 0, LV_PART_MAIN );
-lv_obj_set_style_line_width( ui_Chart1_Xaxis, 1, LV_PART_ITEMS ); //LVGL-9.1 ticks are thicker by default
-lv_obj_set_style_line_width( ui_Chart1_Xaxis, 1, LV_PART_INDICATOR );
-lv_obj_set_style_length( ui_Chart1_Xaxis, 10, LV_PART_ITEMS );    //minor tick length
-lv_obj_set_style_length( ui_Chart1_Xaxis, 2, LV_PART_INDICATOR );    //major tick length
-lv_scale_set_range( ui_Chart1_Xaxis, 0, 5 > 0 ? 5 - 1 : 0 );
-lv_scale_set_total_tick_count( ui_Chart1_Xaxis, (5>0 ? 5-1 : 0) * 2 + 1 );
-lv_scale_set_major_tick_every( ui_Chart1_Xaxis, 2 >= 1 ? 2 : 1 );
-ui_Chart1_Yaxis1 = lv_scale_create( ui_Chart1 );
-lv_scale_set_mode( ui_Chart1_Yaxis1, LV_SCALE_MODE_VERTICAL_LEFT );
-lv_obj_set_size( ui_Chart1_Yaxis1, 50, lv_pct(100) );
-lv_obj_set_align( ui_Chart1_Yaxis1, LV_ALIGN_LEFT_MID );
-lv_obj_set_x( ui_Chart1_Yaxis1, -50 - lv_obj_get_style_pad_left(ui_Chart1,LV_PART_MAIN) - lv_obj_get_style_border_width(ui_Chart1,LV_PART_MAIN) + 2 );
-lv_obj_set_style_line_width( ui_Chart1_Yaxis1, 0, LV_PART_MAIN );
-lv_obj_set_style_line_width( ui_Chart1_Yaxis1, 1, LV_PART_ITEMS );
-lv_obj_set_style_line_width( ui_Chart1_Yaxis1, 1, LV_PART_INDICATOR );
-lv_obj_set_style_length( ui_Chart1_Yaxis1, 5, LV_PART_ITEMS ); //minor tick length
-lv_obj_set_style_length( ui_Chart1_Yaxis1, 10, LV_PART_INDICATOR ); //major tick length
-lv_scale_set_total_tick_count( ui_Chart1_Yaxis1, (5 > 0 ? 5-1 : 0) * 2 + 1 );
-lv_scale_set_major_tick_every( ui_Chart1_Yaxis1, 2 >= 1 ? 2 : 1 );
-ui_Chart1_Yaxis2 = lv_scale_create( ui_Chart1 );
-lv_scale_set_mode( ui_Chart1_Yaxis2, LV_SCALE_MODE_VERTICAL_RIGHT );
-lv_obj_set_size( ui_Chart1_Yaxis2, 25, lv_pct(100) );
-lv_obj_set_align( ui_Chart1_Yaxis2, LV_ALIGN_RIGHT_MID );
-lv_obj_set_x( ui_Chart1_Yaxis2, 25 + lv_obj_get_style_pad_right(ui_Chart1,LV_PART_MAIN) + lv_obj_get_style_border_width(ui_Chart1,LV_PART_MAIN) + 1 );
-lv_obj_set_style_line_width( ui_Chart1_Yaxis2, 0, LV_PART_MAIN );
-lv_obj_set_style_line_width( ui_Chart1_Yaxis2, 1, LV_PART_ITEMS );
-lv_obj_set_style_line_width( ui_Chart1_Yaxis2, 1, LV_PART_INDICATOR );
-lv_obj_set_style_length( ui_Chart1_Yaxis2, 5, LV_PART_ITEMS ); //minor tick length
-lv_obj_set_style_length( ui_Chart1_Yaxis2, 10, LV_PART_INDICATOR ); //major tick length
-lv_scale_set_total_tick_count( ui_Chart1_Yaxis2, (5 > 0 ? 5-1 : 0) * 2 + 1 );
-lv_scale_set_major_tick_every( ui_Chart1_Yaxis2, 2 >= 1 ? 2 : 1 );
-lv_chart_series_t* ui_Chart1_series_1 = lv_chart_add_series(ui_Chart1, lv_color_hex(0x808080), LV_CHART_AXIS_PRIMARY_Y);
-static lv_coord_t ui_Chart1_series_1_array[] = { 0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20,10,0,0,10,20,40,80,80,40,20 };
-lv_chart_set_ext_y_array(ui_Chart1, ui_Chart1_series_1, ui_Chart1_series_1_array);
-
-//This workaround (an invisible outline) is needed because without it chart overflow-visible doesn't work in LVGL-9.1
-lv_obj_set_style_outline_pad( ui_Chart1, LV_MAX3(50, 50, 25), LV_PART_MAIN | LV_STATE_DEFAULT ); //workaround for ineffective 'overflow visible' flag
-lv_obj_set_style_outline_width( ui_Chart1, -1, LV_PART_MAIN | LV_STATE_DEFAULT );
-ui_Panel4 = lv_obj_create(ui_Spectrotab);
-lv_obj_set_width( ui_Panel4, lv_pct(20));
-lv_obj_set_height( ui_Panel4, lv_pct(100));
-lv_obj_set_align( ui_Panel4, LV_ALIGN_CENTER );
-lv_obj_set_flex_flow(ui_Panel4,LV_FLEX_FLOW_COLUMN);
-lv_obj_set_flex_align(ui_Panel4, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-lv_obj_remove_flag( ui_Panel4, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
-
-ui_play1 = ui_play_create(ui_Panel4);
-lv_obj_set_x( ui_play1, 0 );
-lv_obj_set_y( ui_play1, 0 );
-
-lv_label_set_text(ui_comp_get_child(ui_play1, UI_COMP_PLAY_LABEL5),"record");
-
-ui_play2 = ui_play_create(ui_Panel4);
-lv_obj_set_x( ui_play2, 0 );
-lv_obj_set_y( ui_play2, 0 );
-
-lv_label_set_text(ui_comp_get_child(ui_play2, UI_COMP_PLAY_LABEL5),"play");
-
-ui_Spinbox1 = lv_spinbox_create(ui_Panel4);
-lv_obj_set_width( ui_Spinbox1, 96);
-lv_obj_set_height( ui_Spinbox1, 42);
-lv_obj_set_align( ui_Spinbox1, LV_ALIGN_CENTER );
-lv_spinbox_set_digit_format( ui_Spinbox1, 4, 2);
-lv_spinbox_set_range( ui_Spinbox1, 0,9999 );
-lv_spinbox_set_cursor_pos(ui_Spinbox1, 1 - 1);
-
-ui_Switch1 = lv_switch_create(ui_Panel4);
-lv_obj_set_width( ui_Switch1, 50);
-lv_obj_set_height( ui_Switch1, 25);
-lv_obj_set_align( ui_Switch1, LV_ALIGN_CENTER );
-
 ui_Consoletab = lv_tabview_add_tab(ui_TabView1, "Console");
 lv_obj_set_flex_flow(ui_Consoletab,LV_FLEX_FLOW_ROW);
 lv_obj_set_flex_align(ui_Consoletab, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
@@ -166,44 +83,38 @@ lv_textarea_set_placeholder_text(ui_TextArea1,"Placeholder...");
 lv_obj_set_style_bg_color(ui_TextArea1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT );
 lv_obj_set_style_bg_opa(ui_TextArea1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
 
+lv_obj_set_style_text_color(ui_TextArea1, lv_color_hex(0xFF0000), LV_PART_SELECTED | LV_STATE_DEFAULT );
+lv_obj_set_style_text_opa(ui_TextArea1, 255, LV_PART_SELECTED| LV_STATE_DEFAULT);
+
+lv_obj_set_style_text_color(ui_TextArea1, lv_color_hex(0xC35D5D), LV_PART_CURSOR | LV_STATE_DEFAULT );
+lv_obj_set_style_text_opa(ui_TextArea1, 255, LV_PART_CURSOR| LV_STATE_DEFAULT);
 lv_obj_set_style_bg_color(ui_TextArea1, lv_color_hex(0x000000), LV_PART_CURSOR | LV_STATE_DEFAULT );
 lv_obj_set_style_bg_opa(ui_TextArea1, 255, LV_PART_CURSOR| LV_STATE_DEFAULT);
 
-ui_Panel5 = lv_obj_create(ui_Consoletab);
-lv_obj_set_width( ui_Panel5, 196);
-lv_obj_set_height( ui_Panel5, 380);
-lv_obj_set_align( ui_Panel5, LV_ALIGN_CENTER );
-lv_obj_set_flex_flow(ui_Panel5,LV_FLEX_FLOW_COLUMN);
-lv_obj_set_flex_align(ui_Panel5, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-lv_obj_remove_flag( ui_Panel5, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
-lv_obj_set_style_bg_color(ui_Panel5, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_bg_opa(ui_Panel5, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_shadow_color(ui_Panel5, lv_color_hex(0x523B3B), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_shadow_opa(ui_Panel5, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_shadow_width(ui_Panel5, 10, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_shadow_spread(ui_Panel5, 10, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_set_style_text_color(ui_TextArea1, lv_color_hex(0xFF0000), LV_PART_TEXTAREA_PLACEHOLDER | LV_STATE_DEFAULT );
+lv_obj_set_style_text_opa(ui_TextArea1, 255, LV_PART_TEXTAREA_PLACEHOLDER| LV_STATE_DEFAULT);
 
-ui_pktlabel = lv_label_create(ui_Panel5);
-lv_obj_set_width( ui_pktlabel, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_pktlabel, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_align( ui_pktlabel, LV_ALIGN_CENTER );
-lv_label_set_text(ui_pktlabel,"dropped packets");
-lv_obj_set_style_text_color(ui_pktlabel, lv_color_hex(0xFAFAFA), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_text_opa(ui_pktlabel, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+ui_Button1 = lv_button_create(ui_Screen1);
+lv_obj_set_width( ui_Button1, 100);
+lv_obj_set_height( ui_Button1, 50);
+lv_obj_set_x( ui_Button1, 297 );
+lv_obj_set_y( ui_Button1, -22 );
+lv_obj_set_align( ui_Button1, LV_ALIGN_CENTER );
+lv_obj_add_flag( ui_Button1, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags
+lv_obj_remove_flag( ui_Button1, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-ui_dropped = lv_label_create(ui_Panel5);
-lv_obj_set_width( ui_dropped, LV_SIZE_CONTENT);  /// 1
-lv_obj_set_height( ui_dropped, LV_SIZE_CONTENT);   /// 1
-lv_obj_set_align( ui_dropped, LV_ALIGN_CENTER );
-lv_obj_set_flex_flow(ui_dropped,LV_FLEX_FLOW_COLUMN);
-lv_obj_set_flex_align(ui_dropped, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-lv_label_set_text(ui_dropped,"0 packets dropped");
-lv_obj_set_style_text_color(ui_dropped, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_text_opa(ui_dropped, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+ui_Button2 = lv_button_create(ui_Screen1);
+lv_obj_set_width( ui_Button2, 100);
+lv_obj_set_height( ui_Button2, 50);
+lv_obj_set_x( ui_Button2, 309 );
+lv_obj_set_y( ui_Button2, 46 );
+lv_obj_set_align( ui_Button2, LV_ALIGN_CENTER );
+lv_obj_add_flag( ui_Button2, LV_OBJ_FLAG_SCROLL_ON_FOCUS );   /// Flags
+lv_obj_remove_flag( ui_Button2, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_TabView1, ui_event_TabView1, LV_EVENT_ALL, NULL);
-uic_Chart1 = ui_Chart1;
+lv_obj_add_event_cb(ui_Button1, ui_event_Button1, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_Button2, ui_event_Button2, LV_EVENT_ALL, NULL);
 
 }
 
@@ -215,17 +126,9 @@ void ui_Screen1_screen_destroy(void)
 ui_Screen1= NULL;
 ui_TabView1= NULL;
 ui_Spectrotab= NULL;
-uic_Chart1= NULL;
-ui_Chart1= NULL;
-ui_Panel4= NULL;
-ui_play1= NULL;
-ui_play2= NULL;
-ui_Spinbox1= NULL;
-ui_Switch1= NULL;
 ui_Consoletab= NULL;
 ui_TextArea1= NULL;
-ui_Panel5= NULL;
-ui_pktlabel= NULL;
-ui_dropped= NULL;
+ui_Button1= NULL;
+ui_Button2= NULL;
 
 }

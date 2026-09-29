@@ -17,23 +17,13 @@ extern lv_obj_t *ui_Screen1;
 extern void ui_event_TabView1( lv_event_t * e);
 extern lv_obj_t *ui_TabView1;
 extern lv_obj_t *ui_Spectrotab;
-extern lv_obj_t *ui_Chart1;
-extern lv_obj_t *ui_Chart1_Xaxis;
-extern lv_obj_t *ui_Chart1_Yaxis1;
-extern lv_obj_t *ui_Chart1_Yaxis2;
-extern lv_obj_t *ui_Panel4;
-extern lv_obj_t *ui_play1;
-extern lv_obj_t *ui_play2;
-extern lv_obj_t *ui_Spinbox1;
-extern lv_obj_t *ui_Switch1;
 extern lv_obj_t *ui_Consoletab;
-extern void ui_event_TextArea1( lv_event_t * e);
 extern lv_obj_t *ui_TextArea1;
-extern lv_obj_t *ui_Panel5;
-extern lv_obj_t *ui_pktlabel;
-extern lv_obj_t *ui_dropped;
+extern void ui_event_Button1( lv_event_t * e);
+extern lv_obj_t *ui_Button1;
+extern void ui_event_Button2( lv_event_t * e);
+extern lv_obj_t *ui_Button2;
 // CUSTOM VARIABLES
-extern lv_obj_t *uic_Chart1;
 
 #ifdef __cplusplus
 } /*extern "C"*/

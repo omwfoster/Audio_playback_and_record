@@ -195,6 +195,6 @@ Drivers/lvgl/src/widgets/textarea \
 Drivers/lvgl/src/widgets/tileview \
 Drivers/lvgl/src/widgets/win \
 Drivers/ui_files/components \
-Drivers/ui_files/screens \
 Drivers/ui_files \
+Drivers/ui_files/screens \
 

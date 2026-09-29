@@ -170,6 +170,7 @@ SECTIONS
     _ebss = .;
     __bss_end__ = _ebss;
   } >DTCM
+  
 
   /* Reset location counter to SRAM1 origin */
   .dma_buffers (NOLOAD) :
@@ -189,6 +190,23 @@ SECTIONS
     . = ALIGN(4);
     _non_cached_ram_end = .;
   } >SRAM1
+
+  /* DMA/non-cached sections above must stay below MPU Region 6 (0x20040000),
+   * which is cacheable. */
+  ASSERT(_non_cached_ram_end <= 0x20040000, ".dma_buffers/.non_cached_ram overlap cacheable MPU Region 6")
+
+  /* LVGL render buffers: must start at MPU Region 6's base (0x20040000,
+   * 256KB, cacheable -- see MPU_Config() in main.c). */
+  .lvgl_buffers (NOLOAD) :
+  {
+    . = ALIGN(0x40000); /* 256KB alignment */
+    _lvgl_buffers_start = .;
+    *(.lvgl_buffers)
+    _lvgl_buffers_end = .;
+  } >SRAM1
+  ASSERT(_lvgl_buffers_start == 0x20040000, ".lvgl_buffers must start at MPU Region 6 base")
+  
+
 
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack :

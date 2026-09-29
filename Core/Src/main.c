@@ -26,17 +26,12 @@
 #include "waveplayer.h"
 #include "waverecorder.h"
 #include "app_state.h"
-/* USER CODE BEGIN Includes */
-//#include "ui_theme.h"
-//#include "ui_main_layout.h"
-//#include "ui_tabs.h"
 #include "ui.h"
+#include "console_buffer.h"
 
 
 UART_HandleTypeDef huart1;
 
-static uint8_t str[] __attribute__((aligned(32)))
-= "Hello from the STM32F769I-DISCO!\r\n";
 
 FATFS SDCard_FatFs;
 char SDCard_Path[4] = "0:/";
@@ -94,8 +89,7 @@ static void CPU_CACHE_Enable(void);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
-static void record_btn_event_cb(lv_event_t *e);
-static void dashboard_icon_handler(uint8_t index, void *user_data);
+
 
 /* USER CODE END PFP */
 
@@ -118,6 +112,9 @@ int main(void) {
 	uint32_t i;
 	appli_state = APPLICATION_IDLE;
 	h_appli_state = &appli_state;
+    static uint32_t s_last_dropped = 0;
+    uint32_t dropped;
+
 
 	/* USER CODE END 1 */
 
@@ -131,11 +128,6 @@ int main(void) {
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	HAL_Init();
 
-	/* USER CODE BEGIN Init */
-
-	/* USER CODE END Init */
-
-	/* Configure the system clock */
 	SystemClock_Config();
 
 	/* USER CODE BEGIN SysInit */
@@ -148,50 +140,50 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 
 	MX_DMA_Init();
-	MX_USART1_UART_Init();
 
-	HAL_UART_Transmit(&huart1, (uint8_t*) "BOOT 921600\r\n", 13, 100);
 
 	char sd_path[4] = "0:/"; /* FatFs logical drive path, e.g. "0:/" */
 		if (FATFS_LinkDriver(&SD_Driver, sd_path) != 0) {
 		    /* link failed -- handle however you want unrecoverable storage failures handled */
 		}
 
-	AudioStream_Init(&huart1);
-
-	//AUDIO_InitApplication();
-	AUDIO_PLAYER_Init();
 	lv_init();
-
 	tft_init();
 	touchpad_init();
 
-
-
-	/* USER CODE BEGIN 2 */
 	ui_init();
+	ui_console_bind(ui_TextArea1);
 
-
-	/* USER CODE END 2 */
-
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
 	while (1) {
-		uint8_t cmd = AudioStream_ProcessCommand();
-		if (cmd != 0) {
-			HandleCommand(cmd); /* now just posts events */
-		}
-
 		App_Process();
+
 
 	    if (AUDIO_REC_IsActive())
 	    {
 	        AUDIO_REC_Process();
-	     //   ui_console_log("Dropped %lu buffer(s)", (unsigned long)AUDIO_REC_GetDroppedCount());
+	        dropped = AUDIO_REC_GetDroppedCount();
+
+	       if (dropped != s_last_dropped) {
+	            ui_console_log("Dropped %lu buffer(s)", (unsigned long)dropped);
+	            s_last_dropped = dropped;
+	       }
+
+	        extern volatile uint32_t DmaRecCallbackCount;
+
+	        static uint32_t s_rate_t0 = 0;
+	        static uint32_t s_rate_last = 0;
+	        if (HAL_GetTick() - s_rate_t0 >= 1000U)
+	        {
+	            uint32_t now = DmaRecCallbackCount;
+	            ui_console_log("rec cb/s: %lu", (unsigned long)(now - s_rate_last));
+	            s_rate_last = now;
+	            s_rate_t0 = HAL_GetTick();
+	        }
 	    }
 
-		HAL_GPIO_TogglePin(GPIOJ, LD_USER1_Pin);
+
 		lv_task_handler();
+
 	}
 	/* USER CODE END 3 */
 }
@@ -878,6 +870,20 @@ void MPU_Config(void) {
 
 	HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
+	/* Region 6: LVGL render buffers -- write-back cacheable, overriding Region 1
+	 * (non-cacheable SRAM1/2). Higher region number wins on the overlap.
+	 * Base must be 256KB-aligned: 0x20040000 covers 0x20040000-0x2007FFFF. */
+	MPU_InitStruct.Number           = MPU_REGION_NUMBER6;
+	MPU_InitStruct.BaseAddress      = 0x20040000;
+	MPU_InitStruct.Size             = MPU_REGION_SIZE_256KB;
+	MPU_InitStruct.SubRegionDisable = 0x00;
+	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;   /* was NOT_BUFFERABLE */
+	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 }
 
 static void HandleCommand(uint8_t cmd) {
@@ -937,18 +943,30 @@ void Default_Handler_C(void) {
 }
 
 
-/* USER CODE END 0 */
 
-void start_sample(lv_event_t *e) {
+
+void start_capture(lv_event_t * e)
+{
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
 
 	if (!AUDIO_REC_IsActive()) {
 		AUDIO_REC_Start();
-	} else {
-		AUDIO_REC_RequestStop();
 	}
+
+}
+void stop_capture(lv_event_t * e)
+{
+
+	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
+		return;
+	}
+
+	if (AUDIO_REC_IsActive()) {
+	AUDIO_REC_RequestStop();
+	}
+
 }
 
 #ifdef USE_FULL_ASSERT

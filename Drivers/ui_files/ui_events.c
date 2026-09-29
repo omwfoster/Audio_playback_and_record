@@ -35,3 +35,6 @@ void switch_tab(lv_event_t * e)
 
 
 
+
+
+

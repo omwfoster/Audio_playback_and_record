@@ -19,6 +19,7 @@
 #include "waverecorder.h"
 #include "waveplayer.h"
 #include "main.h"
+#include "console_buffer.h"
 
 /* Private defines -----------------------------------------------------------*/
 /* Touch zones for the record screen — bottom 10% (48px) button bar */
@@ -78,6 +79,7 @@ static volatile uint8_t  RecPaused;
  * outside this file's own touch-zone logic). Checked each AUDIO_REC_Process()
  * iteration alongside the existing time-limit check. */
 static volatile uint8_t  RecStopRequested;
+static volatile uint8_t  DmaRecError; /* set by BSP_AUDIO_IN_Error_CallBack(), logged by AUDIO_REC_Process() */
 
 /* ADDED: true from a successful AUDIO_REC_Start() until AUDIO_REC_Process()
  * finalises and closes the file (EOF or IO error). Lets external UI code
@@ -100,27 +102,22 @@ static void     AUDIO_REC_DisplayStatus(uint32_t elapsed_ms);
 
 /* Public functions ----------------------------------------------------------*/
 
-/**
-  * @brief  DFSDM DMA half-transfer hook — first half of BufferCtl_In is ready.
-  *         Called from BSP_AUDIO_IN_HalfTransfer_CallBack() (in main.c) so the
-  *         SD-write loop in AUDIO_REC_Process() flushes it to the WAV file.
-  */
+volatile uint32_t DmaRecCallbackCount; /* total half+full callbacks, for rate diagnosis */
+
 void AUDIO_REC_HalfTransfer_Callback(void)
 {
-  if (DmaRecHalfBuffCplt != 0) /* ADDED: previous half wasn't consumed yet */
+  DmaRecCallbackCount++;
+  if (DmaRecHalfBuffCplt != 0)
   {
     DmaRecPacketDropped++;
   }
   DmaRecHalfBuffCplt = 1;
 }
 
-/**
-  * @brief  DFSDM DMA transfer-complete hook — second half of BufferCtl_In ready.
-  *         Called from BSP_AUDIO_IN_TransferComplete_CallBack() (in main.c).
-  */
 void AUDIO_REC_TransferComplete_Callback(void)
 {
-  if (DmaRecBuffCplt != 0) /* ADDED: previous half wasn't consumed yet */
+  DmaRecCallbackCount++;
+  if (DmaRecBuffCplt != 0)
   {
     DmaRecPacketDropped++;
   }
@@ -150,7 +147,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
                       FA_CREATE_ALWAYS | FA_WRITE);
   if (fr != FR_OK)
   {
-    LCD_ErrLog("Cannot create %s (f_open=%d)\n", REC_WAVE_NAME, (int)fr);
+	  ui_console_log("Cannot create %s (f_open=%d)\n", REC_WAVE_NAME, (int)fr);
     return AUDIO_ERROR_IO;
   }
 
@@ -166,7 +163,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
                         DEFAULT_AUDIO_IN_BIT_RESOLUTION,
                         DEFAULT_AUDIO_IN_CHANNEL_NBR) != AUDIO_OK)
   {
-    LCD_ErrLog("BSP_AUDIO_IN_Init failed!\n");
+	  ui_console_log("BSP_AUDIO_IN_Init failed!\n");
     f_close(&WavRecFile);
     return AUDIO_ERROR_IO;
   }
@@ -179,7 +176,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
 
   /* Draw record-screen UI */
 
-  LCD_UsrLog("\nRecording to %s ...\n", REC_WAVE_NAME);
+  ui_console_log("\nRecording to %s ...\n", REC_WAVE_NAME);
 
   /* Switch application state so the main loop calls AUDIO_REC_Process() */
   AudioState = AUDIO_STATE_RECORD;
@@ -253,7 +250,7 @@ uint32_t AUDIO_REC_GetDroppedCount(void)
 AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
 {
   static uint32_t     t_start_ms = 0;
-  TS_StateTypeDef     ts;
+
   uint32_t            bw;
   FRESULT             res;
   AUDIO_ErrorTypeDef  ret = AUDIO_ERROR_NONE;
@@ -269,25 +266,27 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
 
   /* ---------- Time limit ---------- */
   uint32_t elapsed_ms = HAL_GetTick() - t_start_ms;
-  AUDIO_REC_DisplayStatus(elapsed_ms);
 
-  /* MODIFIED: also end the recording if an external stop was requested,
-   * not just on hitting the time limit. */
+  /* Logged here, not in the error ISR -- ui_console_log() isn't interrupt-safe. */
+  if (DmaRecError)
+  {
+    DmaRecError = 0;
+    ui_console_log("DFSDM DMA error!\n");
+  }
+
+  /* End the recording on an external stop request or on hitting the time limit. */
   if (elapsed_ms >= (uint32_t)DEFAULT_TIME_REC * 1000U || RecStopRequested)
   {
     ret = AUDIO_ERROR_EOF;
     goto done;
   }
 
-  if (RecPaused)
-    return AUDIO_ERROR_NONE;
-
   /* ---------- Write first half when DMA half-transfer fires ---------- */
   if (DmaRecHalfBuffCplt == 1)
   {
     DmaRecHalfBuffCplt = 0;
     /* Invalidate D-Cache for the first half before reading */
-    SCB_InvalidateDCache_by_Addr(
+    SCB_CleanDCache_by_Addr(
         (uint32_t *)BufferCtl_In.pcm_buff,
         AUDIO_IN_PCM_BUFFER_SIZE / 2 * sizeof(uint16_t));
 
@@ -297,10 +296,11 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
                   (UINT *)&bw);
     if (res != FR_OK)
     {
-      LCD_ErrLog("SD write error %d\n", res);
+      ui_console_log("SD write error %d\n", res);
       ret = AUDIO_ERROR_IO;
       goto done;
     }
+    AUDIO_REC_DisplayStatus(elapsed_ms);
     RecBytesWritten += bw;
   }
 
@@ -308,7 +308,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
   if (DmaRecBuffCplt == 1)
   {
     DmaRecBuffCplt = 0;
-    SCB_InvalidateDCache_by_Addr(
+    SCB_CleanDCache_by_Addr(
         (uint32_t *)(BufferCtl_In.pcm_buff + AUDIO_IN_PCM_BUFFER_SIZE / 2),
         AUDIO_IN_PCM_BUFFER_SIZE / 2 * sizeof(uint16_t));
 
@@ -318,10 +318,11 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
                   (UINT *)&bw);
     if (res != FR_OK)
     {
-      LCD_ErrLog("SD write error %d\n", res);
+      ui_console_log("SD write error %d\n", res);
       ret = AUDIO_ERROR_IO;
       goto done;
     }
+    AUDIO_REC_DisplayStatus(elapsed_ms);
     RecBytesWritten += bw;
   }
 
@@ -336,7 +337,7 @@ done:
   f_close(&WavRecFile);
 
   if (ret == AUDIO_ERROR_EOF)
-    LCD_UsrLog("Recording stopped. %lu bytes written.\n", RecBytesWritten);
+	  ui_console_log("Recording stopped. %lu bytes written.\n", RecBytesWritten);
 
   AudioState = AUDIO_STATE_IDLE;
   RecActive = 0; /* ADDED */
@@ -413,17 +414,9 @@ static void AUDIO_REC_DisplayStatus(uint32_t elapsed_ms)
     last_sec = sec;
     uint8_t str[48];
     uint32_t kb = RecBytesWritten / 1024U;
-    sprintf((char *)str, "REC  %02lu:%02lu  |  %lu KB written",
+    ui_console_log("REC  %02lu:%02lu  |  %lu KB written",
             sec / 60U, sec % 60U, kb);
-    /* Line 26 sits in the free strip between the scrolling log window
-     * (lines 4..25) and the bottom button bar (lines 27..29). Drawing inside
-     * the log window (previously line 14) fought with the log scroller:
-     * each scroll erased the status and each status update stomped a log
-     * line, which looked like screen corruption while recording. */
-    BSP_LCD_SetFont(&LCD_LOG_TEXT_FONT);
-    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-    BSP_LCD_ClearStringLine(26);
-    BSP_LCD_DisplayStringAtLine(26, str);
+
   }
 }
 
@@ -435,5 +428,5 @@ static void AUDIO_REC_DisplayStatus(uint32_t elapsed_ms)
   */
 void BSP_AUDIO_IN_Error_CallBack(void)
 {
-  LCD_ErrLog("DFSDM DMA error!\n");
+  DmaRecError = 1;
 }

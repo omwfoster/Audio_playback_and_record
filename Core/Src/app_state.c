@@ -25,21 +25,7 @@ extern uint16_t pcm_right[];
  * Events
  * ----------------------------------------------------------------------- */
 
-void App_PostEvent(AppEventType type, uint32_t payload)
-{
-    /* Single-slot mailbox: the UI cannot generate events faster than the loop
-     * drains them. If that ever changes, widen this to a small ring buffer --
-     * do NOT let it silently overwrite. */
-    g_app.pending_event.payload = payload;
-    g_app.pending_event.type    = type;   /* written last: type gates validity */
-}
 
-AppEvent App_TakeEvent(void)
-{
-    AppEvent e = g_app.pending_event;
-    g_app.pending_event.type = EVT_NONE;
-    return e;
-}
 
 /* --------------------------------------------------------------------------
  * Capture control. These are the ONLY places g_app.capture changes, which is
@@ -138,61 +124,15 @@ void App_Process(void)
         if (g_app.capture != CAPTURE_IDLE) {
             Capture_Stop();
         }
+        if (AUDIO_REC_IsActive()) {
+            AUDIO_REC_RequestStop(); /* stops DMA and closes the file on the next AUDIO_REC_Process() */
+        }
         BSP_AUDIO_OUT_Stop(CODEC_PDWN_SW);
         g_app.storage = STORAGE_ABSENT;
     }
 
-    /* 2. Events ---------------------------------------------------------- */
-    AppEvent e = App_TakeEvent();
-    switch (e.type) {
-    case EVT_RECORD_START:
-        /* Recording needs a card; other sinks do not. */
-        if (App_StorageReady()) {
-            g_app.sinks |= (uint32_t)SINK_SD_RECORD;
-            Capture_Start();
-        }
-        break;
 
-    case EVT_RECORD_STOP:
-        Capture_Stop();
-        break;
 
-    case EVT_SINK_ENABLE:
-        g_app.sinks |= e.payload;
-        /* A UART/UI sink alone is enough reason to run the capture engine --
-         * this is what the old code could not express, because "recording"
-         * and "capturing" were the same state. */
-        Capture_Start();
-        break;
-
-    case EVT_SINK_DISABLE:
-        g_app.sinks &= ~e.payload;
-        if (g_app.sinks == SINK_NONE) {
-            Capture_Stop();
-        }
-        break;
-
-    case EVT_VOLUME_UP:
-     //   BSP_AUDIO_IN_SetVolume(IN_VOLUME);   /* adjust to taste */
-        break;
-
-    case EVT_NONE:
-    default:
-        break;
-    }
-
-    /* 3. Sample flow ----------------------------------------------------- */
-    if (g_app.capture == CAPTURE_RUNNING) {
-        Capture_Drain();
-
-        if (App_SinkActive(SINK_SD_RECORD)) {
-            AUDIO_ErrorTypeDef st = AUDIO_REC_Process();
-            if (st == AUDIO_ERROR_IO || st == AUDIO_ERROR_EOF) {
-                Capture_Stop();
-                g_app.capture = CAPTURE_ERROR;
-            }
-        }
-    }
 }
 
 /* --------------------------------------------------------------------------

@@ -146,8 +146,8 @@ void tft_init(void)
 
 
 
-	static __attribute__((section(".dma_buffers")))uint8_t buf1[TFT_HOR_RES * 48 * 2];
-	static __attribute__((section(".dma_buffers")))uint8_t buf2[TFT_HOR_RES * 48 * 2];
+	static __attribute__((section(".lvgl_buffers")))uint8_t buf1[TFT_HOR_RES * 48 * 2];
+	static __attribute__((section(".lvgl_buffers")))uint8_t buf2[TFT_HOR_RES * 48 * 2];
 	disp = lv_display_create(800, 480);
 	lv_display_set_buffers(disp, buf1, buf2, TFT_HOR_RES * 48 * 2, LV_DISP_RENDER_MODE_PARTIAL);
 	lv_display_set_flush_cb(disp, tft_flush_cb);
@@ -159,30 +159,39 @@ void tft_init(void)
 
 static void tft_flush_cb(lv_disp_t * disp, const lv_area_t * area, uint8_t * pxmap)
 {
+    /* Write back only the cache lines covering this chunk of the render
+     * buffer, so the DMA reads what LVGL actually drew. No invalidate: the
+     * DMA only reads this memory, and invalidating would discard cached
+     * LVGL data for nothing. Address and size are widened to 32-byte
+     * cache-line boundaries, since older CMSIS versions of
+     * SCB_CleanDCache_by_Addr don't do that themselves. */
+    uint32_t len   = (uint32_t)lv_area_get_width(area) * (uint32_t)lv_area_get_height(area) * 2u;
+    uint32_t start = (uint32_t)pxmap & ~31u;
+    uint32_t end   = ((uint32_t)pxmap + len + 31u) & ~31u;
+    SCB_CleanDCache_by_Addr((uint32_t *)start, (int32_t)(end - start));
 
-	SCB_CleanInvalidateDCache();
+    /*Truncate the area to the screen*/
+    int32_t act_x1 = area->x1 < 0 ? 0 : area->x1;
+    int32_t act_y1 = area->y1 < 0 ? 0 : area->y1;
+    int32_t act_x2 = area->x2 > TFT_HOR_RES - 1 ? TFT_HOR_RES - 1 : area->x2;
+    int32_t act_y2 = area->y2 > TFT_VER_RES - 1 ? TFT_VER_RES - 1 : area->y2;
 
-	/*Truncate the area to the screen*/
-	int32_t act_x1 = area->x1 < 0 ? 0 : area->x1;
-	int32_t act_y1 = area->y1 < 0 ? 0 : area->y1;
-	int32_t act_x2 = area->x2 > TFT_HOR_RES - 1 ? TFT_HOR_RES - 1 : area->x2;
-	int32_t act_y2 = area->y2 > TFT_VER_RES - 1 ? TFT_VER_RES - 1 : area->y2;
+    x1_flush = act_x1;
+    y1_flush = act_y1;
+    x2_flush = act_x2;
+    y2_flush = act_y2;
+    y_flush_act = act_y1;
+    buf_to_flush = pxmap;
 
-	x1_flush = act_x1;
-	y1_flush = act_y1;
-	x2_flush = act_x2;
-	y2_flush = act_y2;
-	y_flush_act = act_y1;
-	buf_to_flush = pxmap;
-
-	/*Use DMA instead of DMA2D to leave it free for GPU*/
-	HAL_StatusTypeDef err;
-	err = HAL_DMA_Start_IT(&DmaHandle,(uint32_t)buf_to_flush, (uint32_t)&my_fb[y_flush_act * TFT_HOR_RES + x1_flush],
-			  (x2_flush - x1_flush + 1));
-	if(err != HAL_OK)
-	{
-		while(1);	/*Halt on error*/
-	}
+    /*Use DMA instead of DMA2D to leave it free for GPU*/
+    HAL_StatusTypeDef err;
+    err = HAL_DMA_Start_IT(&DmaHandle, (uint32_t)buf_to_flush,
+                           (uint32_t)&my_fb[y_flush_act * TFT_HOR_RES + x1_flush],
+                           (x2_flush - x1_flush + 1));
+    if (err != HAL_OK)
+    {
+        while (1); /*Halt on error*/
+    }
 }
 
 static void LCD_Config(void)

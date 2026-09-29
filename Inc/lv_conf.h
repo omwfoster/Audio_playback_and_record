@@ -41,6 +41,23 @@
 #define LV_USE_STDLIB_SPRINTF   LV_STDLIB_BUILTIN
 
 
+/*----------------------------------
+ * New LVGL v9 DMA2D Configuration
+ *---------------------------------*/
+
+/* 1: Enable STM32 DMA2D (Chrom-ART) Draw Unit */
+#define LV_USE_DRAW_DMA2D                    1
+
+/* Specify the target processor's HAL header so LVGL can grab register definitions */
+/* e.g., "stm32h7xx_hal.h", "stm32f4xx_hal.h", "stm32f7xx_hal.h", etc. */
+#define LV_DRAW_DMA2D_HAL_INCLUDE            "stm32f7xx_hal.h"
+
+/* Optional Interrupt/OS Optimization (0 or 1) */
+/* 0: Direct register spin-wait (Good for bare-metal) */
+/* 1: Yields to thread via OS during transfers (Requires configuring LV_USE_OS) */
+#define LV_USE_DRAW_DMA2D_INTERRUPT          0
+
+
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /*Size of the memory available for `lv_malloc()` in bytes (>= 2kB)*/
     #define LV_MEM_SIZE (64 * 1024U)          /*[bytes]*/
@@ -62,7 +79,7 @@
  *====================*/
 
 /*Default display refresh, input device read and animation step period.*/
-#define LV_DEF_REFR_PERIOD  33      /*[ms]*/
+#define LV_DEF_REFR_PERIOD  100      /*[ms]*/
 
 /*Default Dot Per Inch. Used to initialize default sizes such as widgets sized, style paddings.
  *(Not so important, you can adjust it to modify default sizes and spaces)*/
@@ -346,7 +363,7 @@
 #define LV_ATTRIBUTE_LARGE_CONST
 
 /*Compiler prefix for a big array declaration in RAM*/
-#define LV_ATTRIBUTE_LARGE_RAM_ARRAY __attribute__((section(".dma_buffers")))
+#define LV_ATTRIBUTE_LARGE_RAM_ARRAY
 
 
 /*Place performance critical functions into a faster memory (e.g RAM)*/
@@ -904,7 +921,7 @@
 *==================*/
 
 /*Enable the examples to be built with the library*/
-#define LV_BUILD_EXAMPLES 1
+#define LV_BUILD_EXAMPLES 0
 
 /*===================
  * DEMO USAGE
@@ -953,6 +970,9 @@
 /*Vector graphic demo*/
 #define LV_USE_DEMO_VECTOR_GRAPHIC  0
 /*--END OF LV_CONF_H--*/
+
+
+
 
 #endif /*LV_CONF_H*/
 
