@@ -22,6 +22,23 @@ extern "C" {
 /** Max number of lines kept in the console ring buffer before oldest is dropped. */
 #define UI_CONSOLE_MAX_LINES  100u
 
+/** Number of most recent lines actually put in the textarea. Every console
+ *  refresh makes LVGL re-wrap and measure the whole text, so the cost grows
+ *  with this; at 100 lines it blocked the main loop for ~0.5 s and caused
+ *  audio drops. Roughly one screenful is enough, since the textarea is
+ *  pinned to the bottom anyway. */
+#ifndef UI_CONSOLE_SHOW_LINES
+#define UI_CONSOLE_SHOW_LINES  25u
+#endif
+
+/** Lowest LVGL log level ui_console_lv_log_cb() shows. INFO and TRACE
+ *  messages come from layout, refresh and timers, and showing them on the
+ *  console makes it redraw, which logs more of them: a feedback loop that
+ *  pins the CPU. Keep this at WARN or above. */
+#ifndef UI_CONSOLE_LV_LOG_MIN_LEVEL
+#define UI_CONSOLE_LV_LOG_MIN_LEVEL  LV_LOG_LEVEL_WARN
+#endif
+
 /**
  * @brief Append a formatted line to the console tab.
  *
@@ -74,6 +91,7 @@ void ui_console_bind(lv_obj_t * textarea);
  *
  *            lv_log_register_print_cb(ui_console_lv_log_cb);
  *
+ * Only messages at UI_CONSOLE_LV_LOG_MIN_LEVEL (WARN) or above are shown.
  * Tabs become spaces, the trailing newline is dropped, and messages longer
  * than UI_CONSOLE_LINE_LEN are wrapped onto extra lines. Messages LVGL logs
  * while the console itself is updating its textarea are ignored, so a

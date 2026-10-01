@@ -9,9 +9,10 @@
   *  half of the buffer.
   *
   *  Buffer timing at 16 kHz stereo 16-bit:
-  *    AUDIO_IN_PCM_BUFFER_SIZE = 9216 half-words (18 432 bytes)
-  *    Each half = 4608 half-words = 9216 bytes = ~144 ms of audio
-  *    → comfortable margin for SD write latency.
+  *    AUDIO_IN_PCM_BUFFER_SIZE = 32768 half-words (65 536 bytes)
+  *    Each half = 16384 half-words = 32768 bytes = 512 ms of audio
+  *    → a half must be written to SD within 512 ms of its callback, or
+  *      the DMA starts overwriting it (silent glitch, not counted as a drop).
   ******************************************************************************
   */
 
@@ -79,6 +80,7 @@ static volatile uint8_t  RecPaused;
  * outside this file's own touch-zone logic). Checked each AUDIO_REC_Process()
  * iteration alongside the existing time-limit check. */
 static volatile uint8_t  RecStopRequested;
+static uint32_t          RecMaxWriteMs; /* longest single f_write() this recording, for drop diagnosis */
 static volatile uint8_t  DmaRecError; /* set by BSP_AUDIO_IN_Error_CallBack(), logged by AUDIO_REC_Process() */
 
 /* ADDED: true from a successful AUDIO_REC_Start() until AUDIO_REC_Process()
@@ -137,6 +139,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
   RecPaused          = 0;
   RecStopRequested   = 0; /* ADDED */
   DmaRecPacketDropped = 0; /* ADDED */
+  RecMaxWriteMs      = 0;
   BufferCtl_In.pcm_ptr  = 0;
   BufferCtl_In.wr_state = BUFFER_EMPTY;
   BufferCtl_In.offset   = 0;
@@ -290,10 +293,13 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
         (uint32_t *)BufferCtl_In.pcm_buff,
         AUDIO_IN_PCM_BUFFER_SIZE / 2 * sizeof(uint16_t));
 
+    uint32_t t_wr = HAL_GetTick();
     res = f_write(&WavRecFile,
                   (uint8_t *)BufferCtl_In.pcm_buff,
                   AUDIO_IN_PCM_BUFFER_SIZE / 2 * sizeof(uint16_t),
                   (UINT *)&bw);
+    t_wr = HAL_GetTick() - t_wr;
+    if (t_wr > RecMaxWriteMs) RecMaxWriteMs = t_wr;
     if (res != FR_OK)
     {
       ui_console_log("SD write error %d\n", res);
@@ -312,10 +318,13 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
         (uint32_t *)(BufferCtl_In.pcm_buff + AUDIO_IN_PCM_BUFFER_SIZE / 2),
         AUDIO_IN_PCM_BUFFER_SIZE / 2 * sizeof(uint16_t));
 
+    uint32_t t_wr = HAL_GetTick();
     res = f_write(&WavRecFile,
                   (uint8_t *)(BufferCtl_In.pcm_buff + AUDIO_IN_PCM_BUFFER_SIZE / 2),
                   AUDIO_IN_PCM_BUFFER_SIZE / 2 * sizeof(uint16_t),
                   (UINT *)&bw);
+    t_wr = HAL_GetTick() - t_wr;
+    if (t_wr > RecMaxWriteMs) RecMaxWriteMs = t_wr;
     if (res != FR_OK)
     {
       ui_console_log("SD write error %d\n", res);
@@ -338,6 +347,7 @@ done:
 
   if (ret == AUDIO_ERROR_EOF)
 	  ui_console_log("Recording stopped. %lu bytes written.\n", RecBytesWritten);
+  ui_console_log("max f_write: %lu ms", (unsigned long)RecMaxWriteMs);
 
   AudioState = AUDIO_STATE_IDLE;
   RecActive = 0; /* ADDED */

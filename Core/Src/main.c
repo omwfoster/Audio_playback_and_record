@@ -183,8 +183,26 @@ int main(void) {
 	    }
 
 
+		/* Drop diagnosis: a drop means AUDIO_REC_Process() wasn't reached for
+		 * ~0.5 s. Track the longest lv_task_handler() pass per recording and
+		 * log it (with the recorder's longest f_write) when the recording ends. */
+		static uint8_t  s_was_active = 0;
+		static uint32_t s_max_lv_ms  = 0;
+		uint32_t t_lv = HAL_GetTick();
 		lv_task_handler();
+		t_lv = HAL_GetTick() - t_lv;
 
+		if (AUDIO_REC_IsActive()) {
+			if (!s_was_active) {
+				s_was_active   = 1;
+				s_max_lv_ms    = 0;
+				s_last_dropped = 0; /* the recorder resets its count on each Start */
+			}
+			if (t_lv > s_max_lv_ms) s_max_lv_ms = t_lv;
+		} else if (s_was_active) {
+			s_was_active = 0;
+			ui_console_log("max lv_task_handler: %lu ms", (unsigned long)s_max_lv_ms);
+		}
 	}
 	/* USER CODE END 3 */
 }

@@ -52,7 +52,12 @@ static void console_rebuild_text(void)
                           ? 0
                           : s_ring.head; /* oldest line index in a full buffer */
 
-    for (uint16_t i = 0; i < s_ring.count; i++) {
+    /* Only the newest UI_CONSOLE_SHOW_LINES lines go to the widget. */
+    uint16_t skip = (s_ring.count > UI_CONSOLE_SHOW_LINES)
+                        ? (uint16_t)(s_ring.count - UI_CONSOLE_SHOW_LINES)
+                        : 0;
+
+    for (uint16_t i = skip; i < s_ring.count; i++) {
         uint16_t idx = (uint16_t)((start + i) % UI_CONSOLE_MAX_LINES);
         size_t line_len = strlen(s_ring.lines[idx]);
         size_t remaining = sizeof(text_buf) - used - 1;
@@ -115,7 +120,12 @@ void ui_console_log(const char * fmt, ...)
 #if LV_USE_LOG
 void ui_console_lv_log_cb(lv_log_level_t level, const char * buf)
 {
-    (void)level; /* LVGL already puts "[Warn]" etc. at the start of buf */
+    /* LVGL already puts "[Warn]" etc. at the start of buf. INFO/TRACE are
+     * dropped: the console's own redraw triggers some of them (e.g. the
+     * flex layout's "update ... container"), which would redraw it again. */
+    if (level < UI_CONSOLE_LV_LOG_MIN_LEVEL) {
+        return;
+    }
 
     /* Drop messages caused by our own textarea update; logging them would
      * mark the console dirty again and redraw it on every timer tick. */

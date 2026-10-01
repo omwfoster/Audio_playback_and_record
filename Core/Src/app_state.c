@@ -72,7 +72,16 @@ static void Capture_DrainHalf(uint16_t *src)
 {
     const uint32_t frames = AUDIO_IN_PCM_BUFFER_SIZE / 2u;
 
-    deinterlace_stereo_pcm(src, pcm_left, pcm_right, frames);
+    /* A half holds frames/2 stereo pairs, far more than pcm_left/pcm_right
+     * (FFT_BLOCK_SIZE * 2 each) can take, so deinterlace in chunks that fit.
+     * Each chunk overwrites the last; hook per-chunk processing (e.g. FFT)
+     * in here when that pipeline comes back. */
+    const uint32_t pairs = frames / 2u;
+    const uint32_t chunk = FFT_BLOCK_SIZE * 2u;
+    for (uint32_t done = 0; done < pairs; done += chunk) {
+        uint32_t n = (pairs - done < chunk) ? (pairs - done) : chunk;
+        deinterlace_stereo_pcm(&src[2u * done], pcm_left, pcm_right, n);
+    }
 
     if (App_SinkActive(SINK_UART_RAW)) {
         AudioStream_SendRawSamples(src, frames);

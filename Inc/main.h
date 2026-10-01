@@ -65,7 +65,7 @@ extern "C" {
 //#define AUDIO_IN_PCM_BUFFER_SIZE                   4*2304 /* buffer size in half-word */
 //#define AUDIO_IN_PCM_BUFFER_SIZE FFT_BLOCK_SIZE * 2 * CHANNEL_NBR
 
-#define AUDIO_IN_PCM_BUFFER_SIZE   16384U  /* 32KB: 256ms per half at 16kHz stereo */
+#define AUDIO_IN_PCM_BUFFER_SIZE   32768U  /* 64KB: 512ms per half at 16kHz stereo */
 #define FILEMGR_LIST_DEPDTH                        24
 #define FILEMGR_FILE_NAME_SIZE                     40
 #define FILEMGR_FULL_PATH_SIZE                     256
