@@ -19,10 +19,11 @@ extern lv_obj_t *ui_TabView1;
 extern lv_obj_t *ui_Spectrotab;
 extern lv_obj_t *ui_Consoletab;
 extern lv_obj_t *ui_TextArea1;
-extern void ui_event_Button1( lv_event_t * e);
-extern lv_obj_t *ui_Button1;
+extern lv_obj_t *ui_Panel2;
 extern void ui_event_Button2( lv_event_t * e);
 extern lv_obj_t *ui_Button2;
+extern void ui_event_Button1( lv_event_t * e);
+extern lv_obj_t *ui_Button1;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

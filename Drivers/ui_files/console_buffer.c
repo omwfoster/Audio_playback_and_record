@@ -25,6 +25,7 @@ static ui_console_ring_t s_ring;
 static lv_obj_t * s_console_ta = NULL; /* the bound lv_textarea, e.g. ui_TextArea1 */
 static lv_timer_t * s_console_timer = NULL;
 static volatile bool s_console_dirty = false; /* set by ui_console_log(), cleared by the timer */
+static bool s_rebuilding = false; /* true while console_rebuild_text() is updating the textarea */
 
 /* Console redraw runs at its own fixed cadence, independent of whatever
  * rate the Spectrum/Spectrogram/Waveform channels redraw at. 2fps = 500ms. */
@@ -67,12 +68,32 @@ static void console_rebuild_text(void)
     /* lv_textarea, not lv_label -- ui_TextArea1 was created with
      * lv_textarea_create() in ui_Screen1.c. Calling lv_label_set_text() on
      * it would be calling the wrong widget's API on the object. */
+    s_rebuilding = true;
     lv_textarea_set_text(s_console_ta, text_buf);
 
     /* Moving the cursor to the end auto-scrolls the textarea to show it --
      * this is the textarea's own native scroll-to-bottom, no separate
      * scrollable container needed. */
     lv_textarea_set_cursor_pos(s_console_ta, LV_TEXTAREA_CURSOR_LAST);
+    s_rebuilding = false;
+}
+
+/* Copy one already-formatted line into the ring buffer and flag a redraw. */
+static void console_append_line(const char * line)
+{
+    uint16_t write_idx = s_ring.head;
+    strncpy(s_ring.lines[write_idx], line, UI_CONSOLE_LINE_LEN);
+    s_ring.lines[write_idx][UI_CONSOLE_LINE_LEN] = '\0';
+
+    s_ring.head = (uint16_t)((s_ring.head + 1) % UI_CONSOLE_MAX_LINES);
+    if (s_ring.count < UI_CONSOLE_MAX_LINES) {
+        s_ring.count++;
+    }
+
+    /* Cheap: just flag that a redraw is due. The actual lv_textarea_set_text()
+     * call (which rebuilds the widget's internal layout) happens on the
+     * console's own timer, not on every log call. */
+    s_console_dirty = true;
 }
 
 void ui_console_log(const char * fmt, ...)
@@ -88,20 +109,44 @@ void ui_console_log(const char * fmt, ...)
     va_end(args);
     line[UI_CONSOLE_LINE_LEN] = '\0'; /* guarantee termination on truncation */
 
-    uint16_t write_idx = s_ring.head;
-    strncpy(s_ring.lines[write_idx], line, UI_CONSOLE_LINE_LEN);
-    s_ring.lines[write_idx][UI_CONSOLE_LINE_LEN] = '\0';
+    console_append_line(line);
+}
 
-    s_ring.head = (uint16_t)((s_ring.head + 1) % UI_CONSOLE_MAX_LINES);
-    if (s_ring.count < UI_CONSOLE_MAX_LINES) {
-        s_ring.count++;
+#if LV_USE_LOG
+void ui_console_lv_log_cb(lv_log_level_t level, const char * buf)
+{
+    (void)level; /* LVGL already puts "[Warn]" etc. at the start of buf */
+
+    /* Drop messages caused by our own textarea update; logging them would
+     * mark the console dirty again and redraw it on every timer tick. */
+    if (buf == NULL || s_rebuilding) {
+        return;
     }
 
-    /* Cheap: just flag that a redraw is due. The actual lv_textarea_set_text()
-     * call (which rebuilds the widget's internal layout) happens on the
-     * console's own timer, not on every log call. */
-    s_console_dirty = true;
+    /* Split on newlines, turn tabs into spaces, and wrap anything longer
+     * than one ring-buffer line. Never passes buf through a format string,
+     * since LVGL messages can contain '%'. */
+    char line[UI_CONSOLE_LINE_LEN + 1];
+    size_t len = 0;
+    for (const char * p = buf; ; p++) {
+        char c = *p;
+        if (c == '\0' || c == '\n' || c == '\r' || len == UI_CONSOLE_LINE_LEN) {
+            if (len > 0) {
+                line[len] = '\0';
+                console_append_line(line);
+                len = 0;
+            }
+            if (c == '\0') {
+                break;
+            }
+            if (c == '\n' || c == '\r') {
+                continue;
+            }
+        }
+        line[len++] = (c == '\t') ? ' ' : c;
+    }
 }
+#endif
 
 /**
  * @brief Fired every UI_CONSOLE_REFRESH_PERIOD_MS. Only touches the widget

@@ -67,6 +67,24 @@ void ui_console_log(const char * fmt, ...);
  */
 void ui_console_bind(lv_obj_t * textarea);
 
+#if LV_USE_LOG
+/**
+ * @brief LVGL log print callback that writes LVGL's own log messages into
+ *        the console. Register it after lv_init() (lv_init() resets it):
+ *
+ *            lv_log_register_print_cb(ui_console_lv_log_cb);
+ *
+ * Tabs become spaces, the trailing newline is dropped, and messages longer
+ * than UI_CONSOLE_LINE_LEN are wrapped onto extra lines. Messages LVGL logs
+ * while the console itself is updating its textarea are ignored, so a
+ * warning from that update can't make the console redraw forever.
+ *
+ * Needs LV_USE_LOG 1 and LV_LOG_PRINTF 0 in lv_conf.h; LV_LOG_LEVEL picks
+ * which messages arrive.
+ */
+void ui_console_lv_log_cb(lv_log_level_t level, const char * buf);
+#endif
+
 /**
  * @brief Clear all lines currently shown in the console tab. Takes effect
  *        on the next 2fps timer tick, same as a logged line.

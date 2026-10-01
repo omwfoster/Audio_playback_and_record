@@ -11,8 +11,8 @@ extern "C" {
 #endif
 
 void switch_tab(lv_event_t * e);
-void start_capture(lv_event_t * e);
 void stop_capture(lv_event_t * e);
+void start_capture(lv_event_t * e);
 
 #ifdef __cplusplus
 } /*extern "C"*/

@@ -48,6 +48,11 @@ void touchpad_init(void)
   lv_indev_t * indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(indev, touchpad_read_cb);
+
+  /* Poll the touch panel every 20 ms. By default LVGL polls at
+   * LV_DEF_REFR_PERIOD (100 ms here), so a quick tap could start and end
+   * between two reads and never register as a click. */
+  lv_timer_set_period(lv_indev_get_read_timer(indev), 20);
 }
 
 /**********************

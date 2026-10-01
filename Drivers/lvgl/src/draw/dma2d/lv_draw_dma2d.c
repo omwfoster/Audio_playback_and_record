@@ -50,6 +50,15 @@ static void post_transfer_tasks(lv_draw_dma2d_unit_t * u);
     static lv_draw_dma2d_unit_t * g_unit;
 #endif
 
+#if LV_DRAW_DMA2D_CACHE
+    /* PATCH (audio_final_boss): cache-line-aligned byte range the current
+     * transfer writes. Cleaned+invalidated before the transfer starts and
+     * invalidated again after it ends, so dirty CPU lines can neither be
+     * evicted over DMA2D output nor be thrown away by the invalidate. */
+    static uint32_t s_out_start;
+    static uint32_t s_out_end;
+#endif
+
 /**********************
  *      MACROS
  **********************/
@@ -194,6 +203,28 @@ void lv_draw_dma2d_configure_and_start_transfer(const lv_draw_dma2d_configuratio
                      | (conf->bg_alpha << DMA2D_BGPFCCR_ALPHA_Pos)
                      | (conf->bg_alpha_mode << DMA2D_BGPFCCR_AM_Pos);
 
+#if LV_DRAW_DMA2D_CACHE
+    /* PATCH: write back and drop every cache line the output touches, rounded
+     * out to whole 32-byte lines. Stock LVGL skipped this for opaque fills,
+     * so dirty lines from earlier software drawing could later be evicted on
+     * top of the DMA2D output (stale pixels). */
+    {
+        uint32_t bpp;
+        switch(conf->output_cf) {
+            case LV_DRAW_DMA2D_OUTPUT_CF_ARGB8888: bpp = 4; break;
+            case LV_DRAW_DMA2D_OUTPUT_CF_RGB888:   bpp = 3; break;
+            default:                               bpp = 2; break;
+        }
+        uint32_t first = (uint32_t)(uintptr_t) conf->output_address;
+        uint32_t len = ((uint32_t)(conf->w + conf->output_offset) * (conf->h - 1) + conf->w) * bpp;
+        s_out_start = first & ~31u;
+        s_out_end   = (first + len + 31u) & ~31u;
+        if(SCB->CCR & SCB_CCR_DC_Msk) {
+            SCB_CleanInvalidateDCache_by_Addr((uint32_t *)s_out_start, (int32_t)(s_out_end - s_out_start));
+        }
+    }
+#endif
+
     /* ensure the DMA2D register values are observed before the start transfer bit is set */
     __DSB();
 
@@ -209,16 +240,20 @@ void lv_draw_dma2d_configure_and_start_transfer(const lv_draw_dma2d_configuratio
 void lv_draw_dma2d_invalidate_cache(const lv_draw_dma2d_cache_area_t * mem_area)
 {
     if(SCB->CCR & SCB_CCR_DC_Msk) {
-        SCB_InvalidateDCache_by_Addr((uint32_t *)mem_area->first_byte,
-                                     mem_area->stride * mem_area->height);
+        /* PATCH: round out to whole cache lines (this CMSIS doesn't) */
+        uint32_t start = (uint32_t)(uintptr_t)mem_area->first_byte & ~31u;
+        uint32_t end = ((uint32_t)(uintptr_t)mem_area->first_byte + mem_area->stride * mem_area->height + 31u) & ~31u;
+        SCB_InvalidateDCache_by_Addr((uint32_t *)start, (int32_t)(end - start));
     }
 }
 
 void lv_draw_dma2d_clean_cache(const lv_draw_dma2d_cache_area_t * mem_area)
 {
     if(SCB->CCR & SCB_CCR_DC_Msk) {
-        SCB_CleanDCache_by_Addr((uint32_t *)mem_area->first_byte,
-                                mem_area->stride * mem_area->height);
+        /* PATCH: round out to whole cache lines (this CMSIS doesn't) */
+        uint32_t start = (uint32_t)(uintptr_t)mem_area->first_byte & ~31u;
+        uint32_t end = ((uint32_t)(uintptr_t)mem_area->first_byte + mem_area->stride * mem_area->height + 31u) & ~31u;
+        SCB_CleanDCache_by_Addr((uint32_t *)start, (int32_t)(end - start));
     }
 }
 #endif
@@ -315,7 +350,12 @@ static int32_t dispatch_cb(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
         const lv_area_t * coords = &t->area;
         lv_area_t clipped_coords;
         if(!lv_area_intersect(&clipped_coords, coords, &t->clip_area)) {
-            return LV_DRAW_UNIT_IDLE;
+            /* PATCH: nothing to draw; finish the task (stock left it in
+             * progress with a stale cache range) */
+            t->state = LV_DRAW_TASK_STATE_FINISHED;
+            draw_dma2d_unit->task_act = NULL;
+            lv_draw_dispatch_request();
+            return 1;
         }
 
         void * dest = lv_draw_layer_go_to_xy(layer,
@@ -342,7 +382,12 @@ static int32_t dispatch_cb(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
         const lv_area_t * coords = &t->area;
         lv_area_t clipped_coords;
         if(!lv_area_intersect(&clipped_coords, coords, &t->clip_area)) {
-            return LV_DRAW_UNIT_IDLE;
+            /* PATCH: nothing to draw; finish the task (stock left it in
+             * progress with a stale cache range) */
+            t->state = LV_DRAW_TASK_STATE_FINISHED;
+            draw_dma2d_unit->task_act = NULL;
+            lv_draw_dispatch_request();
+            return 1;
         }
 
         if(dsc->opa >= LV_OPA_MAX) {
@@ -352,6 +397,17 @@ static int32_t dispatch_cb(lv_draw_unit_t * draw_unit, lv_layer_t * layer)
             lv_draw_dma2d_image(t, dsc, &t->area);
         }
     }
+
+#if !LV_DRAW_DMA2D_ASYNC
+    /* PATCH: wait for the transfer here. Stock LVGL let the software renderer
+     * draw neighbouring pixels while DMA2D ran; with a write-back cache those
+     * share 32-byte lines with the DMA2D output, and either the CPU's line
+     * overwrites the DMA2D pixels or the post-transfer invalidate discards
+     * the CPU's pixels. The CPU doesn't touch the buffer while waiting, so
+     * the cache maintenance around the transfer is exact. */
+    while(!check_transfer_completion()) {}
+    post_transfer_tasks(draw_dma2d_unit);
+#endif
 
     lv_draw_dispatch_request();
 
@@ -387,7 +443,13 @@ static bool check_transfer_completion(void)
 static void post_transfer_tasks(lv_draw_dma2d_unit_t * u)
 {
 #if LV_DRAW_DMA2D_CACHE
-    lv_draw_dma2d_invalidate_cache(&u->writing_area);
+    /* PATCH: invalidate exactly the range cleaned before the transfer (drops
+     * any speculative linefills made meanwhile). Stock code used
+     * stride*height, which also covered bytes past the output that the CPU
+     * may have dirtied, and threw that drawing away. */
+    if(SCB->CCR & SCB_CCR_DC_Msk) {
+        SCB_InvalidateDCache_by_Addr((uint32_t *)s_out_start, (int32_t)(s_out_end - s_out_start));
+    }
 #endif
     u->task_act->state = LV_DRAW_TASK_STATE_FINISHED;
     u->task_act = NULL;

@@ -150,6 +150,7 @@ int main(void) {
 	lv_init();
 	tft_init();
 	touchpad_init();
+	lv_log_register_print_cb(ui_console_lv_log_cb);
 
 	ui_init();
 	ui_console_bind(ui_TextArea1);
