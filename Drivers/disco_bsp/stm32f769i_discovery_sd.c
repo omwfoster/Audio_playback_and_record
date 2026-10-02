@@ -385,15 +385,54 @@ __weak void BSP_SD_MspInit(SD_HandleTypeDef *hsd, void *Params)
   HAL_NVIC_SetPriority(SDMMC2_IRQn, 0x0E, 0);
   HAL_NVIC_EnableIRQ(SDMMC2_IRQn);
 
-  /* NOTE: SD transfers run in POLLING mode (BSP_SD_ReadBlocks / WriteBlocks ->
-     HAL_SD_ReadBlocks / WriteBlocks), so the SD card does NOT use DMA.
-     The previous code here configured DMA2 Stream0 (Rx) and Stream5 (Tx) for the
-     SD with DMA_PFCTRL. Those two streams are ALSO the DFSDM mic streams
-     (TOP_LEFT=DMA2_Stream0, TOP_RIGHT=DMA2_Stream5). Configuring/owning them here
-     forced the mic DMA into PFCTRL/non-circular mode, turning the bounded
-     circular mic capture into an unbounded incrementing write that ran off the
-     end of Scratch and clobbered WavRecFile -> HardFault. The SD DMA setup is
-     removed so DMA2 Stream0/Stream5 belong solely to the DFSDM capture. */
+  /* SD DMA: SDMMC2 can only use DMA2 Stream0/Stream5 (channel 11). These
+     used to clash with the DFSDM mics, whose DMA was then forced into PFCTRL
+     mode and overran Scratch (HardFault). The mics now use Stream4/Stream1
+     (see stm32f769i_discovery_audio.h), so Stream0/Stream5 belong to the SD
+     card alone. IRQ handlers are in stm32f7xx_it.c. */
+  static DMA_HandleTypeDef dma_rx_handle;
+  static DMA_HandleTypeDef dma_tx_handle;
+
+  __DMAx_TxRx_CLK_ENABLE();
+
+  dma_rx_handle.Instance                 = SD_DMAx_Rx_STREAM;
+  dma_rx_handle.Init.Channel             = SD_DMAx_Rx_CHANNEL;
+  dma_rx_handle.Init.Direction           = DMA_PERIPH_TO_MEMORY;
+  dma_rx_handle.Init.PeriphInc           = DMA_PINC_DISABLE;
+  dma_rx_handle.Init.MemInc              = DMA_MINC_ENABLE;
+  dma_rx_handle.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
+  dma_rx_handle.Init.MemDataAlignment    = DMA_MDATAALIGN_WORD;
+  dma_rx_handle.Init.Mode                = DMA_PFCTRL;
+  dma_rx_handle.Init.Priority            = DMA_PRIORITY_VERY_HIGH;
+  dma_rx_handle.Init.FIFOMode            = DMA_FIFOMODE_ENABLE;
+  dma_rx_handle.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
+  dma_rx_handle.Init.MemBurst            = DMA_MBURST_INC4;
+  dma_rx_handle.Init.PeriphBurst         = DMA_PBURST_INC4;
+  __HAL_LINKDMA(hsd, hdmarx, dma_rx_handle);
+  HAL_DMA_DeInit(&dma_rx_handle);
+  HAL_DMA_Init(&dma_rx_handle);
+
+  dma_tx_handle.Instance                 = SD_DMAx_Tx_STREAM;
+  dma_tx_handle.Init.Channel             = SD_DMAx_Tx_CHANNEL;
+  dma_tx_handle.Init.Direction           = DMA_MEMORY_TO_PERIPH;
+  dma_tx_handle.Init.PeriphInc           = DMA_PINC_DISABLE;
+  dma_tx_handle.Init.MemInc              = DMA_MINC_ENABLE;
+  dma_tx_handle.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
+  dma_tx_handle.Init.MemDataAlignment    = DMA_MDATAALIGN_WORD;
+  dma_tx_handle.Init.Mode                = DMA_PFCTRL;
+  dma_tx_handle.Init.Priority            = DMA_PRIORITY_VERY_HIGH;
+  dma_tx_handle.Init.FIFOMode            = DMA_FIFOMODE_ENABLE;
+  dma_tx_handle.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
+  dma_tx_handle.Init.MemBurst            = DMA_MBURST_INC4;
+  dma_tx_handle.Init.PeriphBurst         = DMA_PBURST_INC4;
+  __HAL_LINKDMA(hsd, hdmatx, dma_tx_handle);
+  HAL_DMA_DeInit(&dma_tx_handle);
+  HAL_DMA_Init(&dma_tx_handle);
+
+  HAL_NVIC_SetPriority(SD_DMAx_Rx_IRQn, 0x0F, 0);
+  HAL_NVIC_EnableIRQ(SD_DMAx_Rx_IRQn);
+  HAL_NVIC_SetPriority(SD_DMAx_Tx_IRQn, 0x0F, 0);
+  HAL_NVIC_EnableIRQ(SD_DMAx_Tx_IRQn);
 }
 
 /**

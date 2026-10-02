@@ -3,9 +3,12 @@
   * @file    sd_diskio.c
   * @brief   SD card Disk I/O driver for FatFs.
   *
-  *          Uses blocking BSP_SD_ReadBlocks / BSP_SD_WriteBlocks (no DMA) so
-  *          it works safely alongside the DFSDM DMA audio capture.
-  *          D-Cache coherency is maintained via SCB_CleanInvalidateDCache().
+  *          Transfers use SDMMC2 DMA (DMA2 Stream0 RX / Stream5 TX) and
+  *          wait for the completion callback. The DFSDM mics were moved to
+  *          Stream4/Stream1 so they no longer share these streams.
+  *          D-Cache coherency is maintained around each transfer, and
+  *          buffers that aren't word-aligned go through an aligned scratch
+  *          sector (the DMA needs word alignment).
   ******************************************************************************
   */
 
@@ -41,6 +44,15 @@ extern SD_HandleTypeDef uSdHandle;
 
 /* Private variables ---------------------------------------------------------*/
 static volatile DSTATUS Stat = STA_NOINIT;
+
+/* Set from the SDMMC2 IRQ (HAL_SD_IRQHandler -> callbacks), polled below */
+static volatile uint8_t WriteDone;
+static volatile uint8_t ReadDone;
+static volatile uint8_t XferError;
+
+/* Bounce sector for buffers the DMA can't use directly (not 4-byte aligned).
+ * 32-byte aligned so cache maintenance on it is exact. */
+static uint8_t Scratch[SD_BLOCK_SIZE] __attribute__((aligned(32)));
 
 /* Private function prototypes -----------------------------------------------*/
 static DSTATUS SD_CheckStatus(BYTE lun);
@@ -93,53 +105,126 @@ DSTATUS SD_status(BYTE lun)
   return SD_CheckStatus(lun);
 }
 
+/* Round a buffer out to whole 32-byte cache lines for SCB_*_by_Addr */
+static void dcache_range(const void *buf, uint32_t len, uint32_t **start, int32_t *size)
+{
+  uint32_t a = (uint32_t)buf & ~31u;
+  uint32_t e = ((uint32_t)buf + len + 31u) & ~31u;
+  *start = (uint32_t *)a;
+  *size  = (int32_t)(e - a);
+}
+
+/* Wait for a DMA transfer's completion flag, then for the card to leave the
+ * programming/receiving state. Returns 0 on success. */
+static int wait_xfer(volatile uint8_t *done, uint32_t t0)
+{
+  while (!*done && !XferError)
+  {
+    if (HAL_GetTick() - t0 > SD_TIMEOUT_MS)
+    {
+      HAL_SD_Abort(&uSdHandle);
+      return -1;
+    }
+  }
+  if (XferError)
+  {
+    return -1;
+  }
+  while (BSP_SD_GetCardState() != MSD_OK)
+  {
+    if (HAL_GetTick() - t0 > SD_TIMEOUT_MS)
+    {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+static int read_dma(uint8_t *dst, uint32_t sector, uint32_t count)
+{
+  uint32_t *cs; int32_t cn;
+  dcache_range(dst, count * SD_BLOCK_SIZE, &cs, &cn);
+
+  /* Write back anything dirty around dst so the invalidate after the
+   * transfer can't throw away CPU data sharing its edge cache lines */
+  SCB_CleanInvalidateDCache_by_Addr(cs, cn);
+
+  ReadDone = 0; XferError = 0;
+  uint32_t t0 = HAL_GetTick();
+  if (BSP_SD_ReadBlocks_DMA((uint32_t *)dst, sector, count) != MSD_OK)
+  {
+    return -1;
+  }
+  if (wait_xfer(&ReadDone, t0) != 0)
+  {
+    return -1;
+  }
+
+  /* Drop any lines speculatively refilled during the DMA */
+  SCB_InvalidateDCache_by_Addr(cs, cn);
+  return 0;
+}
+
+static int write_dma(const uint8_t *src, uint32_t sector, uint32_t count)
+{
+  uint32_t *cs; int32_t cn;
+  dcache_range(src, count * SD_BLOCK_SIZE, &cs, &cn);
+  SCB_CleanDCache_by_Addr(cs, cn);
+
+  WriteDone = 0; XferError = 0;
+  uint32_t t0 = HAL_GetTick();
+  if (BSP_SD_WriteBlocks_DMA((uint32_t *)src, sector, count) != MSD_OK)
+  {
+    return -1;
+  }
+  return wait_xfer(&WriteDone, t0);
+}
+
 DRESULT SD_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
 {
-  DRESULT res = RES_ERROR;
-
-  /* Flush D-Cache lines that may alias the destination buffer before DMA/SDMMC fills it */
-  SCB_CleanInvalidateDCache_by_Addr((uint32_t *)buff, count * SD_BLOCK_SIZE);
-
-  if (BSP_SD_ReadBlocks((uint32_t *)buff, (uint32_t)sector, count, SD_TIMEOUT_MS) == MSD_OK)
+  if (((uint32_t)buff & 3u) == 0)
   {
-    uint32_t t = HAL_GetTick();
-    while (BSP_SD_GetCardState() != MSD_OK)
-    {
-      if (HAL_GetTick() - t > SD_TIMEOUT_MS)
-        return RES_ERROR;
-    }
-    res = RES_OK;
+    return (read_dma(buff, (uint32_t)sector, count) == 0) ? RES_OK : RES_ERROR;
   }
-  return res;
+
+  /* Unaligned: one sector at a time through Scratch */
+  for (UINT i = 0; i < count; i++)
+  {
+    if (read_dma(Scratch, (uint32_t)sector + i, 1) != 0)
+    {
+      return RES_ERROR;
+    }
+    memcpy(buff + i * SD_BLOCK_SIZE, Scratch, SD_BLOCK_SIZE);
+  }
+  return RES_OK;
 }
 
 #if _USE_WRITE == 1
 DRESULT SD_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
 {
-  DRESULT res = RES_ERROR;
+  int err = 0;
 
-  /* Clean D-Cache so SDMMC sees up-to-date data */
-  SCB_CleanDCache_by_Addr((uint32_t *)buff, count * SD_BLOCK_SIZE);
-
-  if (BSP_SD_WriteBlocks((uint32_t *)buff, (uint32_t)sector, count, SD_TIMEOUT_MS) == MSD_OK)
+  if (((uint32_t)buff & 3u) == 0)
   {
-    uint32_t t = HAL_GetTick();
-    while (BSP_SD_GetCardState() != MSD_OK)
-    {
-      if (HAL_GetTick() - t > SD_TIMEOUT_MS)
-      {
-        printf("SD_write: card busy timeout (sector %lu)\r\n", (uint32_t)sector);
-        return RES_ERROR;
-      }
-    }
-    res = RES_OK;
+    err = write_dma(buff, (uint32_t)sector, count);
   }
   else
   {
+    /* Unaligned: one sector at a time through Scratch */
+    for (UINT i = 0; i < count && err == 0; i++)
+    {
+      memcpy(Scratch, buff + i * SD_BLOCK_SIZE, SD_BLOCK_SIZE);
+      err = write_dma(Scratch, (uint32_t)sector + i, 1);
+    }
+  }
+
+  if (err != 0)
+  {
     printf("SD_write: HAL err=0x%08lX sector=%lu n=%u\r\n",
            uSdHandle.ErrorCode, (uint32_t)sector, count);
+    return RES_ERROR;
   }
-  return res;
+  return RES_OK;
 }
 #endif /* _USE_WRITE == 1 */
 
@@ -183,3 +268,21 @@ DRESULT SD_ioctl(BYTE lun, BYTE cmd, void *buff)
   return res;
 }
 #endif /* _USE_IOCTL == 1 */
+
+/* SDMMC2 DMA completion callbacks (weak in stm32f769i_discovery_sd.c / HAL),
+ * called from SDMMC2_IRQHandler. */
+void BSP_SD_WriteCpltCallback(void)
+{
+  WriteDone = 1;
+}
+
+void BSP_SD_ReadCpltCallback(void)
+{
+  ReadDone = 1;
+}
+
+void HAL_SD_ErrorCallback(SD_HandleTypeDef *hsd)
+{
+  (void)hsd;
+  XferError = 1;
+}

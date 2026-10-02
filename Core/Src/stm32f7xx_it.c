@@ -309,23 +309,44 @@ void DMA2_Stream7_IRQHandler(void)
 }
 
 
-void DMA2_Stream0_IRQHandler(void)
+/* DMA2 stream map: see the comment above AUDIO_OUT_SAIx_DMAx_STREAM in
+ * stm32f769i_discovery_audio.h. */
+
+/* Top-left mic, DFSDM1_FLT0 */
+void DMA2_Stream4_IRQHandler(void)
 {
-
     HAL_DMA_IRQHandler(hAudioInTopLeftFilter.hdmaReg);
-
 }
 
-/**
-  * @brief  This function handles DMA2 Stream 5 interrupt request.
-  * @param  None
-  * @retval None
-  */
+/* Top-right mic, DFSDM1_FLT1 */
+void DMA2_Stream1_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(hAudioInTopRightFilter.hdmaReg);
+}
+
+/* Audio playback, SAI1_A (waveplayer.c) */
+extern SAI_HandleTypeDef haudio_out_sai;
+void DMA2_Stream3_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(haudio_out_sai.hdmatx);
+}
+
+/* SD card: SDMMC2 RX on Stream0, TX on Stream5, plus the SDMMC2 interrupt
+ * (DATAEND etc.), which HAL_SD_*Blocks_DMA() needs to finish a transfer. */
+extern SD_HandleTypeDef uSdHandle;
+void DMA2_Stream0_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(uSdHandle.hdmarx);
+}
+
 void DMA2_Stream5_IRQHandler(void)
 {
+    HAL_DMA_IRQHandler(uSdHandle.hdmatx);
+}
 
-   HAL_DMA_IRQHandler(hAudioInTopRightFilter.hdmaReg);
-
+void SDMMC2_IRQHandler(void)
+{
+    HAL_SD_IRQHandler(&uSdHandle);
 }
 
 void DSI_IRQHandler(void){

@@ -102,16 +102,23 @@
 #define AUDIO_OUT_SAIx_SCK_PIN                   GPIO_PIN_5
 #define AUDIO_OUT_SAIx_SD_PIN                    GPIO_PIN_6
 
-/* SAI DMA Stream definitions */
+/* SAI DMA Stream definitions.
+ * DMA2 stream map (SAI1_A can use S1/S3 ch0 or S6 ch10, DFSDM1_FLT0 S0/S4,
+ * DFSDM1_FLT1 S1/S5 ch8, SDMMC2 only S0/S5 ch11):
+ *   S0 SDMMC2 RX   S1 DFSDM FLT1 (top right mic)   S2 LCD flush (mem-to-mem)
+ *   S3 SAI1_A out  S4 DFSDM FLT0 (top left mic)    S5 SDMMC2 TX
+ *   S7 USART1 TX
+ * Playback moved from Stream1 to Stream3 so Stream1 can take FLT1, freeing
+ * Stream0/Stream5 for SD card DMA. */
 #define AUDIO_OUT_SAIx_DMAx_CLK_ENABLE()         __HAL_RCC_DMA2_CLK_ENABLE()
-#define AUDIO_OUT_SAIx_DMAx_STREAM               DMA2_Stream1
+#define AUDIO_OUT_SAIx_DMAx_STREAM               DMA2_Stream3
 #define AUDIO_OUT_SAIx_DMAx_CHANNEL              DMA_CHANNEL_0
-#define AUDIO_OUT_SAIx_DMAx_IRQ                  DMA2_Stream1_IRQn
+#define AUDIO_OUT_SAIx_DMAx_IRQ                  DMA2_Stream3_IRQn
 #define AUDIO_OUT_SAIx_DMAx_PERIPH_DATA_SIZE     DMA_PDATAALIGN_HALFWORD
 #define AUDIO_OUT_SAIx_DMAx_MEM_DATA_SIZE        DMA_MDATAALIGN_HALFWORD
 #define DMA_MAX_SZE                              0xFFFF
 
-#define AUDIO_OUT_SAIx_DMAx_IRQHandler           DMA2_Stream1_IRQHandler
+#define AUDIO_OUT_SAIx_DMAx_IRQHandler           DMA2_Stream3_IRQHandler
 
 /* Select the interrupt preemption priority and subpriority for the DMA interrupt */
 #define AUDIO_OUT_IRQ_PREPRIO                    ((uint32_t)0x0E)
@@ -128,7 +135,11 @@
 #define AUDIO_IN_SAIx_SD_GPIO_PORT              GPIOE
 #define AUDIO_IN_SAIx_SD_PIN                    GPIO_PIN_3
 
-/* SAI DMA Stream definitions */
+/* SAI DMA Stream definitions.
+ * WARNING: Stream4 now carries the top-left DFSDM mic (FLT0). This analog
+ * line-in path (SAI1_B, INPUT_DEVICE_INPUT_LINE_x) is unused; SAI1_B's other
+ * streams (S0, S5) belong to the SD card, so it has no free stream. Don't use
+ * it at the same time as the digital mics or SD DMA. */
 #define AUDIO_IN_SAIx_DMAx_CLK_ENABLE()         __HAL_RCC_DMA2_CLK_ENABLE()
 #define AUDIO_IN_SAIx_DMAx_STREAM               DMA2_Stream4
 #define AUDIO_IN_SAIx_DMAx_CHANNEL              DMA_CHANNEL_1
@@ -169,13 +180,14 @@
 #define AUDIO_DFSDMx_DMAx_PERIPH_DATA_SIZE              DMA_PDATAALIGN_WORD
 #define AUDIO_DFSDMx_DMAx_MEM_DATA_SIZE                 DMA_MDATAALIGN_WORD
 
-#define AUDIO_DFSDMx_DMAx_TOP_LEFT_STREAM               DMA2_Stream0
-#define AUDIO_DFSDMx_DMAx_TOP_LEFT_IRQ                  DMA2_Stream0_IRQn   
-#define AUDIO_DFSDMx_DMAx_TOP_LEFT_IRQHandler           DMA2_Stream0_IRQHandler
+/* Top pair moved off Stream0/Stream5 (the only SDMMC2 streams) */
+#define AUDIO_DFSDMx_DMAx_TOP_LEFT_STREAM               DMA2_Stream4
+#define AUDIO_DFSDMx_DMAx_TOP_LEFT_IRQ                  DMA2_Stream4_IRQn
+#define AUDIO_DFSDMx_DMAx_TOP_LEFT_IRQHandler           DMA2_Stream4_IRQHandler
 
-#define AUDIO_DFSDMx_DMAx_TOP_RIGHT_STREAM              DMA2_Stream5
-#define AUDIO_DFSDMx_DMAx_TOP_RIGHT_IRQ                 DMA2_Stream5_IRQn
-#define AUDIO_DFSDMx_DMAx_TOP_RIGHT_IRQHandler          DMA2_Stream5_IRQHandler
+#define AUDIO_DFSDMx_DMAx_TOP_RIGHT_STREAM              DMA2_Stream1
+#define AUDIO_DFSDMx_DMAx_TOP_RIGHT_IRQ                 DMA2_Stream1_IRQn
+#define AUDIO_DFSDMx_DMAx_TOP_RIGHT_IRQHandler          DMA2_Stream1_IRQHandler
 
 #define AUDIO_DFSDMx_DMAx_BUTTOM_LEFT_STREAM            DMA2_Stream6
 #define AUDIO_DFSDMx_DMAx_BUTTOM_LEFT_IRQ               DMA2_Stream6_IRQn   

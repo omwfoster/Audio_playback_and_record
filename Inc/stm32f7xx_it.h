@@ -61,8 +61,12 @@ void USARTx_DMA_TX_IRQHandler(void);
 void USARTx_IRQHandler(void);
 
 
-void DMA2_Stream6_IRQHandler(void);
 void DMA2_Stream0_IRQHandler(void);
+void DMA2_Stream1_IRQHandler(void);
+void DMA2_Stream3_IRQHandler(void);
+void DMA2_Stream4_IRQHandler(void);
+void DMA2_Stream5_IRQHandler(void);
+void SDMMC2_IRQHandler(void);
 
 void AUDIO_DFSDMx_DMAx_TOP_LEFT_IRQHandler(void);
 void AUDIO_DFSDMx_DMAx_TOP_RIGHT_IRQHandler(void);
