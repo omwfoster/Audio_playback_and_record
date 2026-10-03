@@ -11,6 +11,7 @@
 #include "lvgl.h"
 #include "../../disco_bsp/stm32f769i_discovery.h"
 #include "../../disco_bsp/stm32f769i_discovery_ts.h"
+#include "prof.h"
 
 /*********************
  *      DEFINES
@@ -63,7 +64,9 @@ static void touchpad_read_cb(lv_indev_t * indev, lv_indev_data_t *data)
 {
 	static int16_t last_x = 0;
 	static int16_t last_y = 0;
+	uint32_t t_prof = prof_start();
 	BSP_TS_GetState(&TS_State);
+	prof_stop(&g_prof_touch, t_prof);
 	if(TS_State.touchDetected != 0) {
 		data->point.x = TS_State.touchX[0];
 		data->point.y = TS_State.touchY[0];

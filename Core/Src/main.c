@@ -28,6 +28,12 @@
 #include "app_state.h"
 #include "ui.h"
 #include "console_buffer.h"
+#include "prof.h"
+#include "spectrum_view.h"
+
+prof_t g_prof_touch;
+prof_t g_prof_console;
+prof_t g_prof_lv;
 
 
 UART_HandleTypeDef huart1;
@@ -86,6 +92,7 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void CPU_CACHE_Enable(void);
+static void capture_mode_ui_init(lv_obj_t * parent);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
@@ -120,6 +127,7 @@ int main(void) {
 
 	/* MPU Configuration--------------------------------------------------------*/
 	MPU_Config();
+	prof_init();
 	/* Enable the CPU Cache */
 	CPU_CACHE_Enable();
 
@@ -155,6 +163,10 @@ int main(void) {
 	ui_init();
 	ui_console_bind(ui_TextArea1);
 
+	FFT_Pipeline_Init();
+	spectrum_view_init(ui_Chart1);
+	capture_mode_ui_init(ui_Panel2);
+
 	while (1) {
 		App_Process();
 
@@ -188,8 +200,11 @@ int main(void) {
 		 * log it (with the recorder's longest f_write) when the recording ends. */
 		static uint8_t  s_was_active = 0;
 		static uint32_t s_max_lv_ms  = 0;
+		static uint32_t s_rec_t0     = 0;
 		uint32_t t_lv = HAL_GetTick();
+		uint32_t t_prof = prof_start();
 		lv_task_handler();
+		prof_stop(&g_prof_lv, t_prof);
 		t_lv = HAL_GetTick() - t_lv;
 
 		if (AUDIO_REC_IsActive()) {
@@ -197,12 +212,37 @@ int main(void) {
 				s_was_active   = 1;
 				s_max_lv_ms    = 0;
 				s_last_dropped = 0; /* the recorder resets its count on each Start */
+				s_rec_t0       = HAL_GetTick();
+				memset(&g_prof_touch, 0, sizeof(prof_t));
+				memset(&g_prof_console, 0, sizeof(prof_t));
+				memset(&g_prof_lv, 0, sizeof(prof_t));
 			}
 			if (t_lv > s_max_lv_ms) s_max_lv_ms = t_lv;
 		} else if (s_was_active) {
 			s_was_active = 0;
 			ui_console_log("max lv_task_handler: %lu ms", (unsigned long)s_max_lv_ms);
+
+			/* Where lv_task_handler's time went over the recording: total ms
+			 * spent, longest single call, and number of calls. */
+			uint32_t rec_ms = HAL_GetTick() - s_rec_t0;
+			const struct { const char * name; prof_t * p; } rows[] = {
+				{ "lv_task", &g_prof_lv },
+				{ "touch",   &g_prof_touch },
+				{ "console", &g_prof_console },
+			};
+			ui_console_log("prof over %lu ms: total ms / max us / calls", (unsigned long)rec_ms);
+			for (unsigned r = 0; r < sizeof(rows) / sizeof(rows[0]); r++) {
+				ui_console_log("  %-7s %lu / %lu / %lu", rows[r].name,
+				               (unsigned long)(prof_cyc_to_us(rows[r].p->total_cyc) / 1000u),
+				               (unsigned long)prof_cyc_to_us(rows[r].p->max_cyc),
+				               (unsigned long)rows[r].p->calls);
+			}
 		}
+
+
+		/* FFT mode: AUDIO_REC_Process() above runs FFT_Process_Audio_Block()
+		 * on each 512 ms half of BufferCtl_In.pcm_buff and updates the bar
+		 * chart (waverecorder.c, ProcessFftHalf()). */
 	}
 	/* USER CODE END 3 */
 }
@@ -963,6 +1003,41 @@ void Default_Handler_C(void) {
 
 
 
+
+/* Save | FFT selector on the control panel. Picks what the next Start does
+ * (see AUDIO_REC_SetMode()). Built here rather than in SquareLine so
+ * regenerating ui_Screen1.c doesn't remove it. */
+static const char * const s_mode_map[] = { "Save", "FFT", "" };
+
+static void capture_mode_event_cb(lv_event_t * e)
+{
+	lv_obj_t * btnm = lv_event_get_target_obj(e);
+
+	if (AUDIO_REC_IsActive()) {
+		/* Can't switch mid-capture: put the selection back */
+		lv_buttonmatrix_set_button_ctrl(btnm,
+			AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT ? 1 : 0,
+			LV_BUTTONMATRIX_CTRL_CHECKED);
+		ui_console_log("Stop the capture before changing mode");
+		return;
+	}
+
+	uint32_t id = lv_buttonmatrix_get_selected_button(btnm);
+	AUDIO_REC_SetMode(id == 1 ? AUDIO_REC_MODE_FFT : AUDIO_REC_MODE_SAVE);
+}
+
+static void capture_mode_ui_init(lv_obj_t * parent)
+{
+	lv_obj_t * btnm = lv_buttonmatrix_create(parent);
+	lv_obj_set_size(btnm, 180, 60);
+	lv_buttonmatrix_set_map(btnm, s_mode_map);
+	lv_buttonmatrix_set_button_ctrl_all(btnm, LV_BUTTONMATRIX_CTRL_CHECKABLE);
+	lv_buttonmatrix_set_one_checked(btnm, true);
+	lv_buttonmatrix_set_button_ctrl(btnm,
+		AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT ? 1 : 0,
+		LV_BUTTONMATRIX_CTRL_CHECKED);
+	lv_obj_add_event_cb(btnm, capture_mode_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+}
 
 void start_capture(lv_event_t * e)
 {

@@ -49,6 +49,12 @@ typedef void (*AUDIO_REC_StateCallback_t)(uint8_t active);
 #define REC_SAMPLE_LENGTH   (DEFAULT_TIME_REC * DEFAULT_AUDIO_IN_FREQ * DEFAULT_AUDIO_IN_CHANNEL_NBR * 2)
 
 /* Exported macro ------------------------------------------------------------*/
+/* What a capture does with each half-buffer of microphone audio */
+typedef enum {
+  AUDIO_REC_MODE_SAVE = 0,  /* write a WAV file to the SD card (stops at DEFAULT_TIME_REC) */
+  AUDIO_REC_MODE_FFT        /* run the FFT pipeline and update the bar chart; no SD, no time limit */
+} AUDIO_REC_Mode_t;
+
 /* Exported functions ------------------------------------------------------- */
 AUDIO_ErrorTypeDef AUDIO_REC_Process(void);
 AUDIO_ErrorTypeDef AUDIO_REC_Start(void);
@@ -63,6 +69,11 @@ void AUDIO_REC_TransferComplete_Callback(void);
 void    AUDIO_REC_RequestStop(void);
 uint8_t AUDIO_REC_IsActive(void);
 uint32_t AUDIO_REC_GetDroppedCount(void);
+
+/* Choose save-to-SD or live FFT for the next AUDIO_REC_Start(). Ignored
+   while a capture is running. */
+void             AUDIO_REC_SetMode(AUDIO_REC_Mode_t mode);
+AUDIO_REC_Mode_t AUDIO_REC_GetMode(void);
 
 /* ADDED: register a callback fired on every RecActive transition (push,
    not poll). Pass NULL to unregister. Only one callback slot -- if you need

@@ -80,7 +80,7 @@ static void Capture_DrainHalf(uint16_t *src)
     const uint32_t chunk = FFT_BLOCK_SIZE * 2u;
     for (uint32_t done = 0; done < pairs; done += chunk) {
         uint32_t n = (pairs - done < chunk) ? (pairs - done) : chunk;
-        deinterlace_stereo_pcm(&src[2u * done], pcm_left, pcm_right, n);
+
     }
 
     if (App_SinkActive(SINK_UART_RAW)) {

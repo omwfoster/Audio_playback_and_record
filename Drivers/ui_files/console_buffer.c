@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "console_buffer.h"
+#include "prof.h"
 
 
 /* ---- Module state ---------------------------------------------------- */
@@ -29,7 +30,7 @@ static bool s_rebuilding = false; /* true while console_rebuild_text() is updati
 
 /* Console redraw runs at its own fixed cadence, independent of whatever
  * rate the Spectrum/Spectrogram/Waveform channels redraw at. 2fps = 500ms. */
-#define UI_CONSOLE_REFRESH_PERIOD_MS 100u
+#define UI_CONSOLE_REFRESH_PERIOD_MS 500u
 
 
 
@@ -70,16 +71,21 @@ static void console_rebuild_text(void)
         text_buf[used] = '\0';
     }
 
-    /* lv_textarea, not lv_label -- ui_TextArea1 was created with
-     * lv_textarea_create() in ui_Screen1.c. Calling lv_label_set_text() on
-     * it would be calling the wrong widget's API on the object. */
+    /* ui_TextArea1 is an lv_textarea (lv_textarea_create() in ui_Screen1.c).
+     * lv_label_set_text() is only ever called on its inner label below,
+     * never on the textarea object itself. */
     s_rebuilding = true;
-    lv_textarea_set_text(s_console_ta, text_buf);
 
-    /* Moving the cursor to the end auto-scrolls the textarea to show it --
-     * this is the textarea's own native scroll-to-bottom, no separate
-     * scrollable container needed. */
-    lv_textarea_set_cursor_pos(s_console_ta, LV_TEXTAREA_CURSOR_LAST);
+    /* Set the text on the textarea's inner label, not via
+     * lv_textarea_set_text(): that also moves the cursor to the end and
+     * scrolls there with an animation, which redraws the whole textarea on
+     * every frame of the animation (several full redraws per log line).
+     * Here: one jump to the bottom, no animation, one redraw. The cursor
+     * isn't shown (the textarea is never focused), so its position doesn't
+     * matter. */
+    lv_label_set_text(lv_textarea_get_label(s_console_ta), text_buf);
+    lv_obj_update_layout(s_console_ta); /* so the new content height is known */
+    lv_obj_scroll_to_y(s_console_ta, LV_COORD_MAX, LV_ANIM_OFF);
     s_rebuilding = false;
 }
 
@@ -168,7 +174,9 @@ static void console_timer_cb(lv_timer_t * timer)
     (void)timer;
     if (s_console_dirty) {
         s_console_dirty = false;
+        uint32_t t_prof = prof_start();
         console_rebuild_text();
+        prof_stop(&g_prof_console, t_prof);
     }
 }
 

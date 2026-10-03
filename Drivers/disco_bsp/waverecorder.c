@@ -21,6 +21,8 @@
 #include "waveplayer.h"
 #include "main.h"
 #include "console_buffer.h"
+#include "audio_stream_fft.h"
+#include "spectrum_view.h"
 
 /* Private defines -----------------------------------------------------------*/
 /* Touch zones for the record screen — bottom 10% (48px) button bar */
@@ -90,6 +92,9 @@ static volatile uint8_t  DmaRecError; /* set by BSP_AUDIO_IN_Error_CallBack(), l
  * own (time limit) without the UI having been told to stop it. */
 static volatile uint8_t  RecActive;
 
+/* Save to SD or run the FFT; latched at AUDIO_REC_Start() */
+static AUDIO_REC_Mode_t  RecMode = AUDIO_REC_MODE_SAVE;
+
 /* ADDED: registered via AUDIO_REC_SetStateCallback(), fired on every
  * RecActive transition so UI code can react without polling. */
 static AUDIO_REC_StateCallback_t RecStateCallback = NULL;
@@ -100,6 +105,7 @@ static void     WriteWavHeader(FIL *fp, uint32_t sample_rate,
                                uint32_t data_bytes);
 static void     FinaliseWavHeader(FIL *fp, uint32_t data_bytes);
 static void     AUDIO_REC_DisplayStatus(uint32_t elapsed_ms);
+static void     ProcessFftHalf(int16_t *half);
 
 
 /* Public functions ----------------------------------------------------------*/
@@ -145,21 +151,24 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
   BufferCtl_In.offset   = 0;
   BufferCtl_In.fptr     = 0;
 
-  /* Create (or overwrite) the WAV file on the SD card root */
-  FRESULT fr = f_open(&WavRecFile, REC_WAVE_NAME,
-                      FA_CREATE_ALWAYS | FA_WRITE);
-  if (fr != FR_OK)
+  if (RecMode == AUDIO_REC_MODE_SAVE)
   {
-	  ui_console_log("Cannot create %s (f_open=%d)\n", REC_WAVE_NAME, (int)fr);
-    return AUDIO_ERROR_IO;
-  }
+    /* Create (or overwrite) the WAV file on the SD card root */
+    FRESULT fr = f_open(&WavRecFile, REC_WAVE_NAME,
+                        FA_CREATE_ALWAYS | FA_WRITE);
+    if (fr != FR_OK)
+    {
+      ui_console_log("Cannot create %s (f_open=%d)\n", REC_WAVE_NAME, (int)fr);
+      return AUDIO_ERROR_IO;
+    }
 
-  /* Write a placeholder WAV header — sizes filled in when recording stops */
-  WriteWavHeader(&WavRecFile,
-                 DEFAULT_AUDIO_IN_FREQ,
-                 DEFAULT_AUDIO_IN_CHANNEL_NBR,
-                 DEFAULT_AUDIO_IN_BIT_RESOLUTION,
-                 0 /* data size unknown yet */);
+    /* Write a placeholder WAV header — sizes filled in when recording stops */
+    WriteWavHeader(&WavRecFile,
+                   DEFAULT_AUDIO_IN_FREQ,
+                   DEFAULT_AUDIO_IN_CHANNEL_NBR,
+                   DEFAULT_AUDIO_IN_BIT_RESOLUTION,
+                   0 /* data size unknown yet */);
+  }
 
   /* Initialise BSP audio input (DFSDM, 16 kHz, 16-bit, stereo) */
   if (BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ,
@@ -167,7 +176,10 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
                         DEFAULT_AUDIO_IN_CHANNEL_NBR) != AUDIO_OK)
   {
 	  ui_console_log("BSP_AUDIO_IN_Init failed!\n");
-    f_close(&WavRecFile);
+    if (RecMode == AUDIO_REC_MODE_SAVE)
+    {
+      f_close(&WavRecFile);
+    }
     return AUDIO_ERROR_IO;
   }
 
@@ -179,7 +191,14 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
 
   /* Draw record-screen UI */
 
-  ui_console_log("\nRecording to %s ...\n", REC_WAVE_NAME);
+  if (RecMode == AUDIO_REC_MODE_SAVE)
+  {
+    ui_console_log("\nRecording to %s ...\n", REC_WAVE_NAME);
+  }
+  else
+  {
+    ui_console_log("\nFFT running ...\n");
+  }
 
   /* Switch application state so the main loop calls AUDIO_REC_Process() */
   AudioState = AUDIO_STATE_RECORD;
@@ -213,6 +232,24 @@ void AUDIO_REC_SetStateCallback(AUDIO_REC_StateCallback_t cb)
 void AUDIO_REC_RequestStop(void)
 {
   RecStopRequested = 1;
+}
+
+/**
+  * @brief  Choose what the next capture does: save a WAV to SD, or run the
+  *         FFT and update the bar chart. Ignored while a capture is active,
+  *         so a running capture can't switch halfway through.
+  */
+void AUDIO_REC_SetMode(AUDIO_REC_Mode_t mode)
+{
+  if (!RecActive)
+  {
+    RecMode = mode;
+  }
+}
+
+AUDIO_REC_Mode_t AUDIO_REC_GetMode(void)
+{
+  return RecMode;
 }
 
 /**
@@ -278,13 +315,20 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
   }
 
   /* End the recording on an external stop request or on hitting the time limit. */
-  if (elapsed_ms >= (uint32_t)DEFAULT_TIME_REC * 1000U || RecStopRequested)
+  if (RecStopRequested ||
+      (RecMode == AUDIO_REC_MODE_SAVE && elapsed_ms >= (uint32_t)DEFAULT_TIME_REC * 1000U))
   {
     ret = AUDIO_ERROR_EOF;
     goto done;
   }
 
   /* ---------- Write first half when DMA half-transfer fires ---------- */
+  if (DmaRecHalfBuffCplt == 1 && RecMode == AUDIO_REC_MODE_FFT)
+  {
+    DmaRecHalfBuffCplt = 0;
+    ProcessFftHalf((int16_t *)BufferCtl_In.pcm_buff);
+  }
+
   if (DmaRecHalfBuffCplt == 1)
   {
     DmaRecHalfBuffCplt = 0;
@@ -311,6 +355,12 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
   }
 
   /* ---------- Write second half when DMA full-transfer fires ---------- */
+  if (DmaRecBuffCplt == 1 && RecMode == AUDIO_REC_MODE_FFT)
+  {
+    DmaRecBuffCplt = 0;
+    ProcessFftHalf((int16_t *)(BufferCtl_In.pcm_buff + AUDIO_IN_PCM_BUFFER_SIZE / 2));
+  }
+
   if (DmaRecBuffCplt == 1)
   {
     DmaRecBuffCplt = 0;
@@ -341,13 +391,21 @@ done:
   /* Stop DFSDM DMA */
   BSP_AUDIO_IN_Stop();
 
-  /* Update WAV header with the actual data size, then close */
-  FinaliseWavHeader(&WavRecFile, RecBytesWritten);
-  f_close(&WavRecFile);
+  if (RecMode == AUDIO_REC_MODE_SAVE)
+  {
+    /* Update WAV header with the actual data size, then close */
+    FinaliseWavHeader(&WavRecFile, RecBytesWritten);
+    f_close(&WavRecFile);
 
-  if (ret == AUDIO_ERROR_EOF)
-	  ui_console_log("Recording stopped. %lu bytes written.\n", RecBytesWritten);
-  ui_console_log("max f_write: %lu ms", (unsigned long)RecMaxWriteMs);
+    if (ret == AUDIO_ERROR_EOF)
+      ui_console_log("Recording stopped. %lu bytes written.\n", RecBytesWritten);
+    ui_console_log("max f_write: %lu ms", (unsigned long)RecMaxWriteMs);
+  }
+  else
+  {
+    ui_console_log("FFT stopped. max FFT block: %lu ms", (unsigned long)RecMaxWriteMs);
+    spectrum_view_clear();
+  }
 
   AudioState = AUDIO_STATE_IDLE;
   RecActive = 0; /* ADDED */
@@ -361,6 +419,21 @@ done:
 }
 
 /* Private functions ---------------------------------------------------------*/
+
+/**
+  * @brief  FFT mode: analyse one half-buffer (512 ms of interleaved stereo)
+  *         and show the result on the bar chart. Runs on the main loop, so
+  *         calling into LVGL here is safe. The longest call is tracked in
+  *         RecMaxWriteMs, the same slot SAVE mode uses for f_write().
+  */
+static void ProcessFftHalf(int16_t *half)
+{
+  uint32_t t0 = HAL_GetTick();
+  FFT_Process_Audio_Block(half, AUDIO_IN_PCM_BUFFER_SIZE / 2);
+  spectrum_view_update(Clean_Display_Bars, DISPLAY_BINS);
+  uint32_t dt = HAL_GetTick() - t0;
+  if (dt > RecMaxWriteMs) RecMaxWriteMs = dt;
+}
 
 /**
   * @brief  Write a standard 44-byte PCM WAV header to the start of fp.
