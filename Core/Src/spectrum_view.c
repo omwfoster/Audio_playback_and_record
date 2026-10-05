@@ -1,6 +1,6 @@
 /**
  * @file spectrum_view.c
- * @brief Drives the SquareLine bar chart (ui_Chart1) with the FFT
+ * @brief Drives the SquareLine bar chart (ui_Chart2) with the FFT
  *        pipeline's Clean_Display_Bars.
  */
 
@@ -17,9 +17,10 @@
 static lv_obj_t *          s_chart  = NULL;
 static lv_chart_series_t * s_series = NULL;
 
-/* The series' values. SquareLine attaches a 10-element array to the series
- * while setting 128 points, so LVGL would read (and this file would write)
- * past its end. This array replaces it. */
+/* The series' values. SquareLine attaches its own sample-data array to the
+ * series, sized however many sample points were entered in the designer
+ * (an earlier version had 10 for a 128-point chart, so LVGL read past its
+ * end). Replacing it means the chart never depends on that array's size. */
 static int32_t s_bars[DISPLAY_BINS];
 
 void spectrum_view_init(lv_obj_t * chart)

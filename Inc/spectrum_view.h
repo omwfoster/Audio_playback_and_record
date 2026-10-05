@@ -1,6 +1,6 @@
 /**
  * @file spectrum_view.h
- * @brief Drives the SquareLine bar chart (ui_Chart1) with the FFT
+ * @brief Drives the SquareLine bar chart (ui_Chart2) with the FFT
  *        pipeline's Clean_Display_Bars (see audio_stream_fft.h).
  */
 #ifndef SPECTRUM_VIEW_H
@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Take over an existing bar chart (e.g. ui_Chart1 from SquareLine).
+ * @brief Take over an existing bar chart (e.g. ui_Chart2 from SquareLine).
  *        Call once after ui_init(). Gives the chart's first series its own
  *        DISPLAY_BINS-long array, sets the value range, and labels the
  *        chart's scales (dB on the Y axes, kHz on the X axis).

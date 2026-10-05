@@ -14,21 +14,29 @@ extern "C" {
 extern void ui_Screen1_screen_init(void);
 extern void ui_Screen1_screen_destroy(void);
 extern lv_obj_t *ui_Screen1;
-extern void ui_event_TabView1( lv_event_t * e);
-extern lv_obj_t *ui_TabView1;
+extern lv_obj_t *ui_Container4;
+extern lv_obj_t *ui_TabView4;
 extern lv_obj_t *ui_Spectrotab;
-extern lv_obj_t *ui_Chart1;
-extern lv_obj_t *ui_Chart1_Xaxis;
-extern lv_obj_t *ui_Chart1_Yaxis1;
-extern lv_obj_t *ui_Chart1_Yaxis2;
+extern lv_obj_t *ui_Chart2;
+extern lv_obj_t *ui_Chart2_Xaxis;
+extern lv_obj_t *ui_Chart2_Yaxis1;
+extern lv_obj_t *ui_Chart2_Yaxis2;
 extern lv_obj_t *ui_Consoletab;
 extern lv_obj_t *ui_TextArea1;
-extern lv_obj_t *ui_Panel2;
-extern void ui_event_Button2( lv_event_t * e);
-extern lv_obj_t *ui_Button2;
-extern void ui_event_Button1( lv_event_t * e);
-extern lv_obj_t *ui_Button1;
+extern lv_obj_t *ui_Panel5;
+extern void ui_event_Start( lv_event_t * e);
+extern lv_obj_t *ui_Start;
+extern void ui_event_Label1( lv_event_t * e);
+extern lv_obj_t *ui_Label1;
+extern void ui_event_Stop( lv_event_t * e);
+extern lv_obj_t *ui_Stop;
+extern lv_obj_t *ui_Label2;
+extern lv_obj_t *ui_Container5;
+extern lv_obj_t *ui_Label4;
+extern lv_obj_t *ui_Switch2;
+extern lv_obj_t *ui_Label5;
 // CUSTOM VARIABLES
+extern lv_obj_t *uic_Start;
 
 #ifdef __cplusplus
 } /*extern "C"*/

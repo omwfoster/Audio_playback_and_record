@@ -57,7 +57,7 @@ uint16_t pcm_right[FFT_BLOCK_SIZE * 2];
 extern __attribute__((section(".dma_buffers")))
      AUDIO_IN_BufferTypeDef BufferCtl_In;
 
-AUDIO_DEMO_StateMachine AudioDemo;
+
 AUDIO_PLAYBACK_StateTypeDef AudioState;
 AUDIO_ErrorTypeDef status;
 AUDIO_ApplicationTypeDef appli_state;
@@ -164,8 +164,8 @@ int main(void) {
 	ui_console_bind(ui_TextArea1);
 
 	FFT_Pipeline_Init();
-	spectrum_view_init(ui_Chart1);
-	capture_mode_ui_init(ui_Panel2);
+	spectrum_view_init(ui_Chart2);
+	capture_mode_ui_init(ui_Panel5);
 
 	while (1) {
 		App_Process();
@@ -1029,7 +1029,7 @@ static void capture_mode_event_cb(lv_event_t * e)
 static void capture_mode_ui_init(lv_obj_t * parent)
 {
 	lv_obj_t * btnm = lv_buttonmatrix_create(parent);
-	lv_obj_set_size(btnm, 180, 60);
+	lv_obj_set_size(btnm, lv_pct(100), 60);
 	lv_buttonmatrix_set_map(btnm, s_mode_map);
 	lv_buttonmatrix_set_button_ctrl_all(btnm, LV_BUTTONMATRIX_CTRL_CHECKABLE);
 	lv_buttonmatrix_set_one_checked(btnm, true);
@@ -1039,28 +1039,29 @@ static void capture_mode_ui_init(lv_obj_t * parent)
 	lv_obj_add_event_cb(btnm, capture_mode_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
 }
 
-void start_capture(lv_event_t * e)
+/* Start/Stop button handlers (declared in ui_events.h). SquareLine's
+ * function export is off, so it doesn't generate stubs for these in
+ * ui_events.c; if it's turned back on, delete the stubs it adds there. */
+void Startcapture(lv_event_t * e)
 {
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
 
 	if (!AUDIO_REC_IsActive()) {
-		AUDIO_REC_Start();
+		AUDIO_REC_Start(); /* save or FFT, per AUDIO_REC_SetMode() */
 	}
-
 }
-void stop_capture(lv_event_t * e)
-{
 
+void Stopcapture(lv_event_t * e)
+{
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
 
 	if (AUDIO_REC_IsActive()) {
-	AUDIO_REC_RequestStop();
+		AUDIO_REC_RequestStop();
 	}
-
 }
 
 #ifdef USE_FULL_ASSERT
