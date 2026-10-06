@@ -10,10 +10,6 @@
 /* Chart works in integers: 0.0-1.0 bars are scaled to 0-SPECTRUM_Y_MAX */
 #define SPECTRUM_Y_MAX  1000
 
-/* dB span the 0.0-1.0 bars represent (FFT_Process_Audio_Block() maps
- * -100..0 dB onto 0..1); used only for the Y-axis labels */
-#define SPECTRUM_DB_MIN  (-100)
-
 static lv_obj_t *          s_chart  = NULL;
 static lv_chart_series_t * s_series = NULL;
 
@@ -60,7 +56,8 @@ void spectrum_view_init(lv_obj_t * chart)
             lv_scale_set_total_tick_count(child, khz * 2 + 1);
             lv_scale_set_major_tick_every(child, 2);
         } else {
-            lv_scale_set_range(child, SPECTRUM_DB_MIN, 0);     /* -100..0 dB */
+            /* dBFS span the 0.0-1.0 bars represent (audio_stream_fft.h) */
+            lv_scale_set_range(child, (int32_t)DB_FLOOR, (int32_t)DB_CEIL);
             lv_scale_set_total_tick_count(child, 11);
             lv_scale_set_major_tick_every(child, 2);
         }

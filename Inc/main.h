@@ -54,7 +54,7 @@ extern "C" {
 
 
 
-#define FFT_BLOCK_SIZE					  128
+#define FFT_BLOCK_SIZE					  32
 #define BIT_RESOLUTION      			  ((uint8_t)16)
 #define BYES_PER_SAMPLE					  2U
 #define CHANNEL_NBR						  2U

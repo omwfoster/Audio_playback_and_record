@@ -1266,6 +1266,21 @@ uint8_t BSP_AUDIO_IN_Record(uint16_t* pbuf, uint32_t size)
 }
 
 /**
+  * @brief  ADDED: How far the record buffer has been filled, in half-words
+  *         from the start of the buffer passed to BSP_AUDIO_IN_Record()
+  *         (0 .. Size-1, wrapping to 0 at the end). Samples before this
+  *         position are complete. Advances in 16 ms steps (one DFSDM scratch
+  *         half), so a reader can process audio long before the half/full
+  *         transfer callbacks. Only changes inside the DFSDM DMA interrupt,
+  *         so a single read is always consistent.
+  * @retval Write position in half-words.
+  */
+uint32_t BSP_AUDIO_IN_GetWritePos(void)
+{
+  return AppBuffTrigger;
+}
+
+/**
   * @brief  Stop audio recording.
   * @retval AUDIO_OK if correct communication, else wrong communication
   */

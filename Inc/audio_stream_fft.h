@@ -24,37 +24,43 @@
 
 /* FFT Engine Variables */
 
-#define FFT_LEN              512
+/* FFT_LEN sets both the FFT length and the number of output bins/bars:
+ * one bar per frequency bin, FFT_LEN / 2 of them, each
+ * SAMPLE_RATE / FFT_LEN Hz wide, covering 0 .. SAMPLE_RATE / 2.
+ * Must be a power of two from 32 to 4096 (arm_rfft_fast_f32).
+ *   e.g. 64 -> 32 bars of 250 Hz;  512 -> 256 bars of 31.25 Hz */
+#define FFT_LEN              256
 
-#define NUM_RAW_BINS         (FFT_LEN / 2)  /* 256 unique frequency bins */
+#define NUM_RAW_BINS         (FFT_LEN / 2)  /* unique frequency bins */
 
-#define HOP_SIZE             256           /* 50% Overlap window */
+#define HOP_SIZE             (FFT_LEN / 2)  /* 50% Overlap window */
 
-#define BIN_RESOLUTION       ((float32_t)SAMPLE_RATE / FFT_LEN)  /* 31.25 Hz */
+#define BIN_RESOLUTION       ((float32_t)SAMPLE_RATE / FFT_LEN)  /* Hz per bin */
+
+#if (FFT_LEN < 32) || (FFT_LEN > 4096) || ((FFT_LEN & (FFT_LEN - 1)) != 0)
+#error "FFT_LEN must be a power of two from 32 to 4096"
+#endif
 
 
 
 /* Display Visual Target Parameters */
 
-#define DISPLAY_BINS         128
+/* How often the bars update when streaming (FFT_Stream_Process): every
+ * FFT_HOPS_PER_REFRESH hops, i.e. roughly every FFT_REFRESH_MS. Each update
+ * averages the hops since the last one. 100 ms matches LV_DEF_REFR_PERIOD. */
+#define FFT_REFRESH_MS       100
+#define FFT_HOPS_PER_REFRESH ((FFT_REFRESH_MS * SAMPLE_RATE / 1000 + HOP_SIZE / 2) / HOP_SIZE > 0 \
+                              ? (FFT_REFRESH_MS * SAMPLE_RATE / 1000 + HOP_SIZE / 2) / HOP_SIZE : 1)
 
-#define FREQ_MIN             20.0f
+#define DISPLAY_BINS         NUM_RAW_BINS  /* one bar per FFT bin */
 
-#define FREQ_MAX             (SAMPLE_RATE / 2.0f)  /* Nyquist: 8 kHz */
+#define FREQ_MAX             (SAMPLE_RATE / 2.0f)  /* Nyquist: 8 kHz, top of the X axis */
 
-
-
-/* --- Struct Definitions --- */
-
-typedef struct {
-
-    uint32_t index_low;   /* Floor raw bin index */
-
-    uint32_t index_high;  /* Ceiling raw bin index */
-
-    float32_t weight;     /* Fractional blend distance between low and high */
-
-} InterpolationMap_t;
+/* Bar range in dBFS (0 dBFS = full-scale sine). Bars are 0 at DB_FLOOR and
+ * full height at DB_CEIL. Narrow the range to make quiet sounds taller:
+ * e.g. DB_FLOOR -90, DB_CEIL -30 for speech on the MEMS mics. */
+#define DB_FLOOR             (-100.0f)
+#define DB_CEIL              (0.0f)
 
 
 
@@ -95,5 +101,23 @@ void FFT_Pipeline_Init(void);
 
 void FFT_Process_Audio_Block(int16_t *dma_start_ptr, uint32_t total_samples);
 
+
+/**
+* @brief  Start streaming from a capture buffer: the next hop begins at
+*         @p write_pos (half-words, from BSP_AUDIO_IN_GetWritePos()) and
+*         any partly accumulated update is discarded.
+*/
+void FFT_Stream_Reset(uint32_t write_pos);
+
+/**
+* @brief  Process every complete hop between the last call and @p write_pos.
+*         Call often (every main-loop pass). Reads the circular interleaved
+*         stereo buffer @p buf of @p buf_len half-words, wrapping as needed.
+*         If it has fallen more than half a buffer behind, it skips ahead to
+*         the newest audio rather than working through stale hops.
+* @retval 1 when Clean_Display_Bars holds a new update (every
+*         FFT_HOPS_PER_REFRESH hops), else 0.
+*/
+uint8_t FFT_Stream_Process(const int16_t *buf, uint32_t buf_len, uint32_t write_pos);
 
 #endif /* INC_FFT_PROCESSING_H_ */

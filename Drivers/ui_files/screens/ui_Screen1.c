@@ -6,7 +6,8 @@
 #include "../ui.h"
 
 lv_obj_t *uic_Start;
-lv_obj_t *ui_Screen1 = NULL;lv_obj_t *ui_Container4 = NULL;lv_obj_t *ui_TabView4 = NULL;lv_obj_t *ui_Spectrotab = NULL;lv_obj_t *ui_Chart2 = NULL;lv_obj_t *ui_Chart2_Xaxis = NULL;lv_obj_t *ui_Chart2_Yaxis1 = NULL;lv_obj_t *ui_Chart2_Yaxis2 = NULL;lv_obj_t *ui_Consoletab = NULL;lv_obj_t *ui_TextArea1 = NULL;lv_obj_t *ui_Panel5 = NULL;lv_obj_t *ui_Start = NULL;lv_obj_t *ui_Label1 = NULL;lv_obj_t *ui_Stop = NULL;lv_obj_t *ui_Label2 = NULL;lv_obj_t *ui_Container5 = NULL;lv_obj_t *ui_Label4 = NULL;lv_obj_t *ui_Switch2 = NULL;lv_obj_t *ui_Label5 = NULL;
+lv_obj_t *uic_canvasplaceholder;
+lv_obj_t *ui_Screen1 = NULL;lv_obj_t *ui_Container4 = NULL;lv_obj_t *ui_TabView4 = NULL;lv_obj_t *ui_FFTtab = NULL;lv_obj_t *ui_Chart2 = NULL;lv_obj_t *ui_Chart2_Xaxis = NULL;lv_obj_t *ui_Chart2_Yaxis1 = NULL;lv_obj_t *ui_Chart2_Yaxis2 = NULL;lv_obj_t *ui_Consoletab = NULL;lv_obj_t *ui_TextArea1 = NULL;lv_obj_t *ui_Spectrumtab = NULL;lv_obj_t *ui_canvasplaceholder = NULL;lv_obj_t *ui_Panel5 = NULL;lv_obj_t *ui_Start = NULL;lv_obj_t *ui_Label1 = NULL;lv_obj_t *ui_Stop = NULL;lv_obj_t *ui_Label2 = NULL;lv_obj_t *ui_Container5 = NULL;lv_obj_t *ui_Label4 = NULL;lv_obj_t *ui_Switch2 = NULL;lv_obj_t *ui_Label5 = NULL;
 // event funtions
 void ui_event_Start( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -29,6 +30,14 @@ void ui_event_Stop( lv_event_t * e) {
 
 if ( event_code == LV_EVENT_CLICKED) {
       Stopcapture( e );
+}
+}
+
+void ui_event_Switch2( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+if ( event_code == LV_EVENT_VALUE_CHANGED) {
+      switch_pipelline( e );
 }
 }
 
@@ -59,9 +68,9 @@ lv_obj_set_y( ui_TabView4, -36 );
 lv_obj_set_align( ui_TabView4, LV_ALIGN_CENTER );
 lv_obj_remove_flag( ui_TabView4, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-ui_Spectrotab = lv_tabview_add_tab(ui_TabView4, "Spectrum");
+ui_FFTtab = lv_tabview_add_tab(ui_TabView4, "FFT");
 
-ui_Chart2 = lv_chart_create(ui_Spectrotab);
+ui_Chart2 = lv_chart_create(ui_FFTtab);
 lv_obj_set_width( ui_Chart2, lv_pct(90));
 lv_obj_set_height( ui_Chart2, lv_pct(90));
 lv_obj_set_align( ui_Chart2, LV_ALIGN_CENTER );
@@ -123,6 +132,19 @@ lv_obj_set_width( ui_TextArea1, lv_pct(90));
 lv_obj_set_height( ui_TextArea1, lv_pct(90));
 lv_obj_set_align( ui_TextArea1, LV_ALIGN_CENTER );
 lv_textarea_set_placeholder_text(ui_TextArea1,"Placeholder...");
+lv_obj_set_style_text_color(ui_TextArea1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_text_opa(ui_TextArea1, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_Spectrumtab = lv_tabview_add_tab(ui_TabView4, "Spectrogram");
+lv_obj_set_flex_flow(ui_Spectrumtab,LV_FLEX_FLOW_ROW);
+lv_obj_set_flex_align(ui_Spectrumtab, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+
+ui_canvasplaceholder = lv_obj_create(ui_Spectrumtab);
+lv_obj_remove_style_all(ui_canvasplaceholder);
+lv_obj_set_width( ui_canvasplaceholder, 100);
+lv_obj_set_height( ui_canvasplaceholder, 50);
+lv_obj_set_align( ui_canvasplaceholder, LV_ALIGN_CENTER );
+lv_obj_remove_flag( ui_canvasplaceholder, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
 ui_Panel5 = lv_obj_create(ui_Container4);
 lv_obj_set_width( ui_Panel5, lv_pct(20));
@@ -187,6 +209,8 @@ lv_label_set_text(ui_Label5,"FFT");
 lv_obj_add_event_cb(ui_Label1, ui_event_Label1, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Start, ui_event_Start, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_Stop, ui_event_Stop, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_Switch2, ui_event_Switch2, LV_EVENT_ALL, NULL);
+uic_canvasplaceholder = ui_canvasplaceholder;
 uic_Start = ui_Start;
 
 }
@@ -199,10 +223,13 @@ void ui_Screen1_screen_destroy(void)
 ui_Screen1= NULL;
 ui_Container4= NULL;
 ui_TabView4= NULL;
-ui_Spectrotab= NULL;
+ui_FFTtab= NULL;
 ui_Chart2= NULL;
 ui_Consoletab= NULL;
 ui_TextArea1= NULL;
+ui_Spectrumtab= NULL;
+uic_canvasplaceholder= NULL;
+ui_canvasplaceholder= NULL;
 ui_Panel5= NULL;
 uic_Start= NULL;
 ui_Start= NULL;

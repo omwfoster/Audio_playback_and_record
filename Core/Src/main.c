@@ -30,14 +30,13 @@
 #include "console_buffer.h"
 #include "prof.h"
 #include "spectrum_view.h"
+#include "spectrum_tab.h"
 
 prof_t g_prof_touch;
 prof_t g_prof_console;
 prof_t g_prof_lv;
 
-
 UART_HandleTypeDef huart1;
-
 
 FATFS SDCard_FatFs;
 char SDCard_Path[4] = "0:/";
@@ -51,12 +50,8 @@ extern __attribute__((section(".dma_buffers")))q15_t mag_bins_output[FFT_BLOCK_S
 uint16_t pcm_left[FFT_BLOCK_SIZE * 2];
 uint16_t pcm_right[FFT_BLOCK_SIZE * 2];
 
-
-
-
 extern __attribute__((section(".dma_buffers")))
-     AUDIO_IN_BufferTypeDef BufferCtl_In;
-
+      AUDIO_IN_BufferTypeDef BufferCtl_In;
 
 AUDIO_PLAYBACK_StateTypeDef AudioState;
 AUDIO_ErrorTypeDef status;
@@ -92,11 +87,9 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void CPU_CACHE_Enable(void);
-static void capture_mode_ui_init(lv_obj_t * parent);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
-
 
 /* USER CODE END PFP */
 
@@ -112,16 +105,17 @@ static void HandleCommand(uint8_t cmd);
 
 /* USER CODE BEGIN 0 */
 
-
 int main(void) {
 
 	/* USER CODE BEGIN 1 */
 	uint32_t i;
 	appli_state = APPLICATION_IDLE;
 	h_appli_state = &appli_state;
-    static uint32_t s_last_dropped = 0;
-    uint32_t dropped;
-
+	static uint32_t s_last_dropped = 0;
+	uint32_t dropped;
+	static uint8_t s_was_active = 0;
+	static uint32_t s_max_lv_ms = 0;
+	static uint32_t s_rec_t0 = 0;
 
 	/* USER CODE END 1 */
 
@@ -149,11 +143,10 @@ int main(void) {
 
 	MX_DMA_Init();
 
-
 	char sd_path[4] = "0:/"; /* FatFs logical drive path, e.g. "0:/" */
-		if (FATFS_LinkDriver(&SD_Driver, sd_path) != 0) {
-		    /* link failed -- handle however you want unrecoverable storage failures handled */
-		}
+	if (FATFS_LinkDriver(&SD_Driver, sd_path) != 0) {
+		/* link failed -- handle however you want unrecoverable storage failures handled */
+	}
 
 	lv_init();
 	tft_init();
@@ -165,80 +158,88 @@ int main(void) {
 
 	FFT_Pipeline_Init();
 	spectrum_view_init(ui_Chart2);
-	capture_mode_ui_init(ui_Panel5);
+	init_spectrogram(ui_canvasplaceholder);
+	/* Rec/FFT switch: off = save to SD, on = FFT. Match it to the mode the
+	 * recorder starts in. */
+	if (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT) {
+		lv_obj_add_state(ui_Switch2, LV_STATE_CHECKED);
+	} else {
+		lv_obj_remove_state(ui_Switch2, LV_STATE_CHECKED);
+	}
 
 	while (1) {
 		App_Process();
 
+		if (AUDIO_REC_IsActive()) {
+			AUDIO_REC_Process();
 
-	    if (AUDIO_REC_IsActive())
-	    {
-	        AUDIO_REC_Process();
-	        dropped = AUDIO_REC_GetDroppedCount();
-
-	       if (dropped != s_last_dropped) {
-	            ui_console_log("Dropped %lu buffer(s)", (unsigned long)dropped);
-	            s_last_dropped = dropped;
-	       }
-
-	        extern volatile uint32_t DmaRecCallbackCount;
-
-	        static uint32_t s_rate_t0 = 0;
-	        static uint32_t s_rate_last = 0;
-	        if (HAL_GetTick() - s_rate_t0 >= 1000U)
-	        {
-	            uint32_t now = DmaRecCallbackCount;
-	            ui_console_log("rec cb/s: %lu", (unsigned long)(now - s_rate_last));
-	            s_rate_last = now;
-	            s_rate_t0 = HAL_GetTick();
-	        }
-	    }
-
+		}
 
 		/* Drop diagnosis: a drop means AUDIO_REC_Process() wasn't reached for
 		 * ~0.5 s. Track the longest lv_task_handler() pass per recording and
 		 * log it (with the recorder's longest f_write) when the recording ends. */
-		static uint8_t  s_was_active = 0;
-		static uint32_t s_max_lv_ms  = 0;
-		static uint32_t s_rec_t0     = 0;
+
 		uint32_t t_lv = HAL_GetTick();
 		uint32_t t_prof = prof_start();
 		lv_task_handler();
 		prof_stop(&g_prof_lv, t_prof);
 		t_lv = HAL_GetTick() - t_lv;
 
-		if (AUDIO_REC_IsActive()) {
+		if (AUDIO_REC_IsActive()
+				&& (AUDIO_REC_GetMode() == AUDIO_REC_MODE_LOG)) {
 			if (!s_was_active) {
-				s_was_active   = 1;
-				s_max_lv_ms    = 0;
+				s_was_active = 1;
+				s_max_lv_ms = 0;
 				s_last_dropped = 0; /* the recorder resets its count on each Start */
-				s_rec_t0       = HAL_GetTick();
+				s_rec_t0 = HAL_GetTick();
 				memset(&g_prof_touch, 0, sizeof(prof_t));
 				memset(&g_prof_console, 0, sizeof(prof_t));
 				memset(&g_prof_lv, 0, sizeof(prof_t));
 			}
-			if (t_lv > s_max_lv_ms) s_max_lv_ms = t_lv;
+			dropped = AUDIO_REC_GetDroppedCount();
+
+			if (dropped != s_last_dropped) {
+				ui_console_log("Dropped %lu buffer(s)",
+						(unsigned long) dropped);
+				s_last_dropped = dropped;
+			}
+
+			extern volatile uint32_t DmaRecCallbackCount;
+
+			static uint32_t s_rate_t0 = 0;
+			static uint32_t s_rate_last = 0;
+			if (HAL_GetTick() - s_rate_t0 >= 1000U) {
+				uint32_t now = DmaRecCallbackCount;
+				ui_console_log("rec cb/s: %lu",
+						(unsigned long) (now - s_rate_last));
+				s_rate_last = now;
+				s_rate_t0 = HAL_GetTick();
+			}
+			if (t_lv > s_max_lv_ms)
+				s_max_lv_ms = t_lv;
 		} else if (s_was_active) {
 			s_was_active = 0;
-			ui_console_log("max lv_task_handler: %lu ms", (unsigned long)s_max_lv_ms);
+			ui_console_log("max lv_task_handler: %lu ms",
+					(unsigned long) s_max_lv_ms);
 
 			/* Where lv_task_handler's time went over the recording: total ms
 			 * spent, longest single call, and number of calls. */
 			uint32_t rec_ms = HAL_GetTick() - s_rec_t0;
-			const struct { const char * name; prof_t * p; } rows[] = {
-				{ "lv_task", &g_prof_lv },
-				{ "touch",   &g_prof_touch },
-				{ "console", &g_prof_console },
-			};
-			ui_console_log("prof over %lu ms: total ms / max us / calls", (unsigned long)rec_ms);
+			const struct {
+				const char *name;
+				prof_t *p;
+			} rows[] = { { "lv_task", &g_prof_lv }, { "touch", &g_prof_touch },
+					{ "console", &g_prof_console }, };
+			ui_console_log("prof over %lu ms: total ms / max us / calls",
+					(unsigned long) rec_ms);
 			for (unsigned r = 0; r < sizeof(rows) / sizeof(rows[0]); r++) {
 				ui_console_log("  %-7s %lu / %lu / %lu", rows[r].name,
-				               (unsigned long)(prof_cyc_to_us(rows[r].p->total_cyc) / 1000u),
-				               (unsigned long)prof_cyc_to_us(rows[r].p->max_cyc),
-				               (unsigned long)rows[r].p->calls);
+						(unsigned long) (prof_cyc_to_us(rows[r].p->total_cyc)
+								/ 1000u),
+						(unsigned long) prof_cyc_to_us(rows[r].p->max_cyc),
+						(unsigned long) rows[r].p->calls);
 			}
 		}
-
 
 		/* FFT mode: AUDIO_REC_Process() above runs FFT_Process_Audio_Block()
 		 * on each 512 ms half of BufferCtl_In.pcm_buff and updates the bar
@@ -772,8 +773,6 @@ static void MX_GPIO_Init(void) {
  */
 static void MX_USART1_UART_Init(void) {
 
-
-
 	/* USER CODE END USART1_Init 1 */
 	huart1.Instance = USART1;
 	huart1.Init.BaudRate = 921600;
@@ -932,16 +931,16 @@ void MPU_Config(void) {
 	/* Region 6: LVGL render buffers -- write-back cacheable, overriding Region 1
 	 * (non-cacheable SRAM1/2). Higher region number wins on the overlap.
 	 * Base must be 256KB-aligned: 0x20040000 covers 0x20040000-0x2007FFFF. */
-	MPU_InitStruct.Number           = MPU_REGION_NUMBER6;
-	MPU_InitStruct.BaseAddress      = 0x20040000;
-	MPU_InitStruct.Size             = MPU_REGION_SIZE_256KB;
+	MPU_InitStruct.Number = MPU_REGION_NUMBER6;
+	MPU_InitStruct.BaseAddress = 0x20040000;
+	MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
 	MPU_InitStruct.SubRegionDisable = 0x00;
-	MPU_InitStruct.TypeExtField     = MPU_TEX_LEVEL1;
+	MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
 	MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-	MPU_InitStruct.DisableExec      = MPU_INSTRUCTION_ACCESS_DISABLE;
-	MPU_InitStruct.IsShareable      = MPU_ACCESS_NOT_SHAREABLE;
-	MPU_InitStruct.IsCacheable      = MPU_ACCESS_CACHEABLE;
-	MPU_InitStruct.IsBufferable     = MPU_ACCESS_BUFFERABLE;   /* was NOT_BUFFERABLE */
+	MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+	MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+	MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+	MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE; /* was NOT_BUFFERABLE */
 	HAL_MPU_ConfigRegion(&MPU_InitStruct);
 }
 
@@ -1001,49 +1000,10 @@ void Default_Handler_C(void) {
 	__BKPT(0);
 }
 
-
-
-
-/* Save | FFT selector on the control panel. Picks what the next Start does
- * (see AUDIO_REC_SetMode()). Built here rather than in SquareLine so
- * regenerating ui_Screen1.c doesn't remove it. */
-static const char * const s_mode_map[] = { "Save", "FFT", "" };
-
-static void capture_mode_event_cb(lv_event_t * e)
-{
-	lv_obj_t * btnm = lv_event_get_target_obj(e);
-
-	if (AUDIO_REC_IsActive()) {
-		/* Can't switch mid-capture: put the selection back */
-		lv_buttonmatrix_set_button_ctrl(btnm,
-			AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT ? 1 : 0,
-			LV_BUTTONMATRIX_CTRL_CHECKED);
-		ui_console_log("Stop the capture before changing mode");
-		return;
-	}
-
-	uint32_t id = lv_buttonmatrix_get_selected_button(btnm);
-	AUDIO_REC_SetMode(id == 1 ? AUDIO_REC_MODE_FFT : AUDIO_REC_MODE_SAVE);
-}
-
-static void capture_mode_ui_init(lv_obj_t * parent)
-{
-	lv_obj_t * btnm = lv_buttonmatrix_create(parent);
-	lv_obj_set_size(btnm, lv_pct(100), 60);
-	lv_buttonmatrix_set_map(btnm, s_mode_map);
-	lv_buttonmatrix_set_button_ctrl_all(btnm, LV_BUTTONMATRIX_CTRL_CHECKABLE);
-	lv_buttonmatrix_set_one_checked(btnm, true);
-	lv_buttonmatrix_set_button_ctrl(btnm,
-		AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT ? 1 : 0,
-		LV_BUTTONMATRIX_CTRL_CHECKED);
-	lv_obj_add_event_cb(btnm, capture_mode_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
-}
-
 /* Start/Stop button handlers (declared in ui_events.h). SquareLine's
  * function export is off, so it doesn't generate stubs for these in
  * ui_events.c; if it's turned back on, delete the stubs it adds there. */
-void Startcapture(lv_event_t * e)
-{
+void Startcapture(lv_event_t *e) {
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
@@ -1053,8 +1013,7 @@ void Startcapture(lv_event_t * e)
 	}
 }
 
-void Stopcapture(lv_event_t * e)
-{
+void Stopcapture(lv_event_t *e) {
 	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
 		return;
 	}
@@ -1062,6 +1021,27 @@ void Stopcapture(lv_event_t * e)
 	if (AUDIO_REC_IsActive()) {
 		AUDIO_REC_RequestStop();
 	}
+}
+
+/* Rec/FFT switch (ui_Switch2, VALUE_CHANGED): picks what the next Start
+ * does. Off = save a WAV to SD, on = run the FFT and update the chart. */
+void switch_pipelline(lv_event_t *e) {
+	lv_obj_t *sw = lv_event_get_target_obj(e);
+
+	if (AUDIO_REC_IsActive()) {
+		/* Can't switch mid-capture: put the switch back */
+		if (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT) {
+			lv_obj_add_state(sw, LV_STATE_CHECKED);
+		} else {
+			lv_obj_remove_state(sw, LV_STATE_CHECKED);
+		}
+		ui_console_log("Stop the capture before changing mode");
+		return;
+	}
+
+	AUDIO_REC_SetMode(
+			lv_obj_has_state(sw, LV_STATE_CHECKED) ?
+					AUDIO_REC_MODE_FFT : AUDIO_REC_MODE_SAVE);
 }
 
 #ifdef USE_FULL_ASSERT

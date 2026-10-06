@@ -52,7 +52,8 @@ typedef void (*AUDIO_REC_StateCallback_t)(uint8_t active);
 /* What a capture does with each half-buffer of microphone audio */
 typedef enum {
   AUDIO_REC_MODE_SAVE = 0,  /* write a WAV file to the SD card (stops at DEFAULT_TIME_REC) */
-  AUDIO_REC_MODE_FFT        /* run the FFT pipeline and update the bar chart; no SD, no time limit */
+  AUDIO_REC_MODE_FFT,        /* run the FFT pipeline and update the bar chart; no SD, no time limit */
+  AUDIO_REC_MODE_LOG
 } AUDIO_REC_Mode_t;
 
 /* Exported functions ------------------------------------------------------- */

@@ -292,6 +292,7 @@ uint8_t BSP_AUDIO_IN_GetChannelNumber(void);
 void    BSP_AUDIO_IN_DeInit(void);
 uint8_t BSP_AUDIO_IN_Record(uint16_t *pData, uint32_t Size);
 uint8_t BSP_AUDIO_IN_Stop(void);
+uint32_t BSP_AUDIO_IN_GetWritePos(void);
 uint8_t BSP_AUDIO_IN_Pause(void);
 uint8_t BSP_AUDIO_IN_Resume(void);
 

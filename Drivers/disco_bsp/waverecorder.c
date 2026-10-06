@@ -23,6 +23,7 @@
 #include "console_buffer.h"
 #include "audio_stream_fft.h"
 #include "spectrum_view.h"
+#include "spectrum_tab.h"
 
 /* Private defines -----------------------------------------------------------*/
 /* Touch zones for the record screen — bottom 10% (48px) button bar */
@@ -105,7 +106,7 @@ static void     WriteWavHeader(FIL *fp, uint32_t sample_rate,
                                uint32_t data_bytes);
 static void     FinaliseWavHeader(FIL *fp, uint32_t data_bytes);
 static void     AUDIO_REC_DisplayStatus(uint32_t elapsed_ms);
-static void     ProcessFftHalf(int16_t *half);
+static void     ProcessFftStream(void);
 
 
 /* Public functions ----------------------------------------------------------*/
@@ -188,6 +189,12 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
   /* Start DMA capture into the ping-pong buffer */
   BSP_AUDIO_IN_Record((uint16_t *)BufferCtl_In.pcm_buff,
                       AUDIO_IN_PCM_BUFFER_SIZE);
+
+  if (RecMode == AUDIO_REC_MODE_FFT)
+  {
+    /* Stream from wherever the DFSDM interrupt starts writing */
+    FFT_Stream_Reset(BSP_AUDIO_IN_GetWritePos());
+  }
 
   /* Draw record-screen UI */
 
@@ -322,13 +329,19 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
     goto done;
   }
 
-  /* ---------- Write first half when DMA half-transfer fires ---------- */
-  if (DmaRecHalfBuffCplt == 1 && RecMode == AUDIO_REC_MODE_FFT)
+  /* FFT mode doesn't wait for half/full callbacks: it processes each hop
+   * as soon as the DFSDM interrupt has written it (ProcessFftStream()), and
+   * skips ahead itself if it falls behind. Clear the flags so they don't
+   * count as dropped buffers. */
+  if (RecMode == AUDIO_REC_MODE_FFT)
   {
     DmaRecHalfBuffCplt = 0;
-    ProcessFftHalf((int16_t *)BufferCtl_In.pcm_buff);
+    DmaRecBuffCplt     = 0;
+    ProcessFftStream();
+    return AUDIO_ERROR_NONE;
   }
 
+  /* ---------- Write first half when DMA half-transfer fires ---------- */
   if (DmaRecHalfBuffCplt == 1)
   {
     DmaRecHalfBuffCplt = 0;
@@ -355,12 +368,6 @@ AUDIO_ErrorTypeDef AUDIO_REC_Process(void)
   }
 
   /* ---------- Write second half when DMA full-transfer fires ---------- */
-  if (DmaRecBuffCplt == 1 && RecMode == AUDIO_REC_MODE_FFT)
-  {
-    DmaRecBuffCplt = 0;
-    ProcessFftHalf((int16_t *)(BufferCtl_In.pcm_buff + AUDIO_IN_PCM_BUFFER_SIZE / 2));
-  }
-
   if (DmaRecBuffCplt == 1)
   {
     DmaRecBuffCplt = 0;
@@ -421,16 +428,23 @@ done:
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  FFT mode: analyse one half-buffer (512 ms of interleaved stereo)
-  *         and show the result on the bar chart. Runs on the main loop, so
-  *         calling into LVGL here is safe. The longest call is tracked in
-  *         RecMaxWriteMs, the same slot SAVE mode uses for f_write().
+  * @brief  FFT mode: run an FFT for every hop the DFSDM interrupt has
+  *         written since the last call, and update the bar chart every
+  *         FFT_HOPS_PER_REFRESH hops (about every FFT_REFRESH_MS). Runs on
+  *         the main loop, so calling into LVGL here is safe. The longest
+  *         call is tracked in RecMaxWriteMs, the slot SAVE mode uses for
+  *         f_write().
   */
-static void ProcessFftHalf(int16_t *half)
+static void ProcessFftStream(void)
 {
   uint32_t t0 = HAL_GetTick();
-  FFT_Process_Audio_Block(half, AUDIO_IN_PCM_BUFFER_SIZE / 2);
-  spectrum_view_update(Clean_Display_Bars, DISPLAY_BINS);
+  if (FFT_Stream_Process((const int16_t *)BufferCtl_In.pcm_buff,
+                         AUDIO_IN_PCM_BUFFER_SIZE,
+                         BSP_AUDIO_IN_GetWritePos()))
+  {
+    spectrum_view_update(Clean_Display_Bars, DISPLAY_BINS);
+    spectrogram_push_bars(Clean_Display_Bars, DISPLAY_BINS);
+  }
   uint32_t dt = HAL_GetTick() - t0;
   if (dt > RecMaxWriteMs) RecMaxWriteMs = dt;
 }
