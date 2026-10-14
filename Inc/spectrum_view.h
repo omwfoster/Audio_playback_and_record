@@ -28,6 +28,9 @@ void spectrum_view_init(lv_obj_t * chart);
  */
 void spectrum_view_update(const float * bars, uint32_t count);
 
+/** @brief Redraw the bars as they are, e.g. after the colour map changes. */
+void spectrum_view_refresh(void);
+
 /** @brief Drop all bars to zero, e.g. when capture stops. */
 void spectrum_view_clear(void);
 

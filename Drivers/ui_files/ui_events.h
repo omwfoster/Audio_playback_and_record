@@ -10,10 +10,6 @@
 extern "C" {
 #endif
 
-void Startcapture(lv_event_t * e);
-void Stopcapture(lv_event_t * e);
-void switch_pipelline(lv_event_t * e);
-
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

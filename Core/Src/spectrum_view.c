@@ -6,6 +6,7 @@
 
 #include "spectrum_view.h"
 #include "audio_stream_fft.h"
+#include "spectrum_tab.h"   /* shared colour map (ui_heatmap dropdown) */
 
 /* Chart works in integers: 0.0-1.0 bars are scaled to 0-SPECTRUM_Y_MAX */
 #define SPECTRUM_Y_MAX  1000
@@ -18,6 +19,26 @@ static lv_chart_series_t * s_series = NULL;
  * (an earlier version had 10 for a 128-point chart, so LVGL read past its
  * end). Replacing it means the chart never depends on that array's size. */
 static int32_t s_bars[DISPLAY_BINS];
+
+/* Colour each bar by its height through the selected colour map. The chart
+ * draws every bar as a fill task with part LV_PART_ITEMS and the bar's index
+ * in id2; recolour it as it's queued. */
+static void bar_color_cb(lv_event_t * e)
+{
+    lv_draw_task_t * task = lv_event_get_draw_task(e);
+    lv_draw_fill_dsc_t * fill = lv_draw_task_get_fill_dsc(task);
+    if (fill == NULL || fill->base.part != LV_PART_ITEMS) {
+        return;
+    }
+    uint32_t i = fill->base.id2;
+    if (i >= DISPLAY_BINS) {
+        return;
+    }
+    int32_t v = s_bars[i];
+    if (v < 0) v = 0;
+    if (v > SPECTRUM_Y_MAX) v = SPECTRUM_Y_MAX;
+    fill->color = spectrogram_colormap((uint8_t)((v * 255) / SPECTRUM_Y_MAX));
+}
 
 void spectrum_view_init(lv_obj_t * chart)
 {
@@ -40,6 +61,10 @@ void spectrum_view_init(lv_obj_t * chart)
      * bars square, or the theme's default spacing hides them */
     lv_obj_set_style_pad_column(s_chart, 1, LV_PART_MAIN);
     lv_obj_set_style_radius(s_chart, 0, LV_PART_ITEMS);
+
+    /* Per-bar colours from the heatmap (bar_color_cb) */
+    lv_obj_add_flag(s_chart, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    lv_obj_add_event_cb(s_chart, bar_color_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
 
     /* Label the scales SquareLine added as chart children: Y in dB,
      * X in kHz from 0 to Nyquist. Scales are found by type, so this keeps
@@ -82,6 +107,13 @@ void spectrum_view_update(const float * bars, uint32_t count)
         s_bars[i] = (int32_t)(v * SPECTRUM_Y_MAX);
     }
     lv_chart_refresh(s_chart);
+}
+
+void spectrum_view_refresh(void)
+{
+    if (s_chart != NULL) {
+        lv_chart_refresh(s_chart);
+    }
 }
 
 void spectrum_view_clear(void)

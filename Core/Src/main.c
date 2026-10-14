@@ -87,6 +87,8 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 
 static void CPU_CACHE_Enable(void);
+static void control_panel_init(void);
+static void status_panel_update(void);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
@@ -159,13 +161,10 @@ int main(void) {
 	FFT_Pipeline_Init();
 	spectrum_view_init(ui_Chart2);
 	init_spectrogram(ui_canvasplaceholder);
-	/* Rec/FFT switch: off = save to SD, on = FFT. Match it to the mode the
-	 * recorder starts in. */
-	if (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT) {
-		lv_obj_add_state(ui_Switch2, LV_STATE_CHECKED);
-	} else {
-		lv_obj_remove_state(ui_Switch2, LV_STATE_CHECKED);
-	}
+
+	/* Right-hand control panel: Start/Stop, Save|FFT mode, colour map,
+	 * status card. Events are attached here, not in SquareLine. */
+	control_panel_init();
 
 	while (1) {
 		App_Process();
@@ -184,6 +183,8 @@ int main(void) {
 		lv_task_handler();
 		prof_stop(&g_prof_lv, t_prof);
 		t_lv = HAL_GetTick() - t_lv;
+
+		status_panel_update();
 
 		if (AUDIO_REC_IsActive()
 				&& (AUDIO_REC_GetMode() == AUDIO_REC_MODE_LOG)) {
@@ -1000,48 +1001,171 @@ void Default_Handler_C(void) {
 	__BKPT(0);
 }
 
-/* Start/Stop button handlers (declared in ui_events.h). SquareLine's
- * function export is off, so it doesn't generate stubs for these in
- * ui_events.c; if it's turned back on, delete the stubs it adds there. */
-void Startcapture(lv_event_t *e) {
-	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-		return;
-	}
+/* --- Right-hand control panel (ui_Panel7) ---------------------------------
+ *   ui_Button7 / ui_Label11   Start
+ *   ui_Button6 / ui_Label18   Stop
+ *   ui_uiModeSave, ui_uiModeFFT   Save | FFT mode pair
+ *   ui_Dropdown2              colour map (options matched by name)
+ *   ui_ColourMap              colour bar for the selected map (below the dropdown)
+ *   ui_Label15 / 14 / 16      status: state, elapsed time, dropped buffers
+ * All events are attached in control_panel_init(); SquareLine function
+ * export is off. */
 
+#define PANEL_ACCENT     0x4FC3F7   /* FFT / selected mode */
+#define PANEL_REC        0xEF4444   /* saving to SD */
+#define PANEL_IDLE       0x8A8A99
+#define PANEL_SEG_BG     0x262631   /* unselected mode button */
+#define PANEL_SEG_TEXT   0xC9C9D3
+#define PANEL_DARK_TEXT  0x0B0B0F
+
+static void start_btn_cb(lv_event_t * e)
+{
+	(void)e;
 	if (!AUDIO_REC_IsActive()) {
 		AUDIO_REC_Start(); /* save or FFT, per AUDIO_REC_SetMode() */
 	}
 }
 
-void Stopcapture(lv_event_t *e) {
-	if (lv_event_get_code(e) != LV_EVENT_CLICKED) {
-		return;
-	}
-
+static void stop_btn_cb(lv_event_t * e)
+{
+	(void)e;
 	if (AUDIO_REC_IsActive()) {
 		AUDIO_REC_RequestStop();
 	}
 }
 
-/* Rec/FFT switch (ui_Switch2, VALUE_CHANGED): picks what the next Start
- * does. Off = save a WAV to SD, on = run the FFT and update the chart. */
-void switch_pipelline(lv_event_t *e) {
-	lv_obj_t *sw = lv_event_get_target_obj(e);
+/* Style one half of the Save | FFT pair as selected or not */
+static void mode_btn_style(lv_obj_t * btn, bool selected)
+{
+	lv_obj_set_style_bg_color(btn, lv_color_hex(selected ? PANEL_ACCENT : PANEL_SEG_BG), LV_PART_MAIN);
+	lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+	lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
+	lv_obj_t * label = lv_obj_get_child(btn, 0);
+	if (label != NULL) {
+		lv_obj_set_style_text_color(label, lv_color_hex(selected ? PANEL_DARK_TEXT : PANEL_SEG_TEXT), LV_PART_MAIN);
+	}
+}
 
+/* Show the recorder's current mode on the pair */
+static void mode_btns_sync(void)
+{
+	bool fft = (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT);
+	mode_btn_style(ui_uiModeSave, !fft);
+	mode_btn_style(ui_uiModeFFT, fft);
+}
+
+static void mode_btn_cb(lv_event_t * e)
+{
 	if (AUDIO_REC_IsActive()) {
-		/* Can't switch mid-capture: put the switch back */
-		if (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT) {
-			lv_obj_add_state(sw, LV_STATE_CHECKED);
-		} else {
-			lv_obj_remove_state(sw, LV_STATE_CHECKED);
-		}
 		ui_console_log("Stop the capture before changing mode");
 		return;
 	}
+	lv_obj_t * btn = lv_event_get_target_obj(e);
+	AUDIO_REC_SetMode(btn == ui_uiModeFFT ? AUDIO_REC_MODE_FFT : AUDIO_REC_MODE_SAVE);
+	mode_btns_sync();
+}
 
-	AUDIO_REC_SetMode(
-			lv_obj_has_state(sw, LV_STATE_CHECKED) ?
-					AUDIO_REC_MODE_FFT : AUDIO_REC_MODE_SAVE);
+/* Colour map dropdown: matched by option text, so its order doesn't matter.
+ * Also repaints the colour bar (ui_ColourMap) with the new map. */
+static void colormap_apply(lv_obj_t * dd)
+{
+	static lv_grad_dsc_t s_bar_grad; /* the style keeps a pointer to it */
+	char name[16];
+
+	lv_dropdown_get_selected_str(dd, name, sizeof(name));
+	spectrogram_set_colormap(spectrogram_colormap_from_name(name));
+	spectrum_view_refresh();
+
+	spectrogram_colormap_gradient(&s_bar_grad);
+	lv_obj_set_style_bg_grad(ui_ColourMap, &s_bar_grad, LV_PART_MAIN);
+	lv_obj_invalidate(ui_ColourMap);
+}
+
+/* ui_ColourMap is a label in SquareLine; turn it into a 10 px rounded strip
+ * under the dropdown, painted by colormap_apply() */
+static void colour_bar_init(void)
+{
+	lv_obj_swap(ui_ColourMap, ui_Dropdown2);  /* SquareLine has it above the dropdown */
+	lv_label_set_text(ui_ColourMap, "");
+	lv_obj_set_size(ui_ColourMap, lv_pct(100), 10);
+	lv_obj_set_style_pad_all(ui_ColourMap, 0, LV_PART_MAIN);
+	lv_obj_set_style_radius(ui_ColourMap, 5, LV_PART_MAIN);
+	lv_obj_set_style_bg_opa(ui_ColourMap, LV_OPA_COVER, LV_PART_MAIN);
+}
+
+static void colormap_changed_cb(lv_event_t * e)
+{
+	colormap_apply(lv_event_get_target_obj(e));
+}
+
+static void control_panel_init(void)
+{
+	/* Icons: LV_SYMBOL_* glyphs are in the built-in Montserrat fonts */
+	lv_label_set_text(ui_Label11, LV_SYMBOL_PLAY "  Start");
+	lv_label_set_text(ui_Label18, LV_SYMBOL_STOP "  Stop");
+	lv_obj_set_style_text_color(ui_Label18, lv_color_hex(PANEL_REC), LV_PART_MAIN);
+
+	lv_obj_add_event_cb(ui_Button7, start_btn_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_add_event_cb(ui_Button6, stop_btn_cb, LV_EVENT_CLICKED, NULL);
+
+	lv_obj_add_event_cb(ui_uiModeSave, mode_btn_cb, LV_EVENT_CLICKED, NULL);
+	lv_obj_add_event_cb(ui_uiModeFFT, mode_btn_cb, LV_EVENT_CLICKED, NULL);
+	mode_btns_sync();
+
+	colour_bar_init();
+	lv_obj_add_event_cb(ui_Dropdown2, colormap_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
+	colormap_apply(ui_Dropdown2);
+
+	status_panel_update();
+}
+
+/* Status card: called every main-loop pass, but only touches the labels when
+ * something visible changes (state, elapsed second, drop count), so it
+ * doesn't cause redraws on its own. */
+static void status_panel_update(void)
+{
+	static int8_t   s_state = -1;       /* 0 idle, 1 saving, 2 FFT */
+	static uint32_t s_t0;
+	static uint32_t s_sec = UINT32_MAX;
+	static uint32_t s_dropped = UINT32_MAX;
+
+	int8_t state = 0;
+	if (AUDIO_REC_IsActive()) {
+		state = (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT) ? 2 : 1;
+	}
+
+	if (state != s_state) {
+		if (state != 0 && s_state <= 0) {
+			s_t0 = HAL_GetTick();  /* a capture started: restart the clock */
+			s_sec = UINT32_MAX;
+		}
+		s_state = state;
+		static const char * const text[] = {
+			LV_SYMBOL_BULLET " IDLE", LV_SYMBOL_BULLET " RECORDING", LV_SYMBOL_BULLET " LIVE FFT" };
+		static const uint32_t color[] = { PANEL_IDLE, PANEL_REC, PANEL_ACCENT };
+		lv_label_set_text(ui_Label15, text[state]);
+		lv_obj_set_style_text_color(ui_Label15, lv_color_hex(color[state]), LV_PART_MAIN);
+	}
+
+	/* Elapsed time runs while capturing and holds its last value when idle */
+	if (state != 0) {
+		uint32_t sec = (HAL_GetTick() - s_t0) / 1000u;
+		if (sec != s_sec) {
+			s_sec = sec;
+			lv_label_set_text_fmt(ui_Label14, "%02lu:%02lu",
+			                      (unsigned long)(sec / 60u), (unsigned long)(sec % 60u));
+		}
+
+		uint32_t dropped = AUDIO_REC_GetDroppedCount();
+		if (dropped != s_dropped) {
+			s_dropped = dropped;
+			lv_label_set_text_fmt(ui_Label16, "Dropped buffers: %lu", (unsigned long)dropped);
+		}
+	} else if (s_sec == UINT32_MAX) {
+		s_sec = 0;
+		lv_label_set_text(ui_Label14, "00:00");
+		lv_label_set_text(ui_Label16, "Dropped buffers: 0");
+	}
 }
 
 #ifdef USE_FULL_ASSERT

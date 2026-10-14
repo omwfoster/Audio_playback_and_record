@@ -105,6 +105,56 @@ void FFT_Process_Audio_Block(int16_t *dma_start_ptr, uint32_t total_samples) {
     }
 }
 
+/* --- Adaptive per-bin scaling ------------------------------------------- */
+
+static float32_t s_adapt_fast[DISPLAY_BINS];  /* S: short-term average, dB */
+static float32_t s_adapt_slow[DISPLAY_BINS];  /* L: long-term average, dB */
+static uint8_t   s_adapt_seeded;
+
+void FFT_Adaptive_Reset(void) {
+    s_adapt_seeded = 0;
+}
+
+void FFT_Adaptive_Scale(float32_t *bars, uint32_t count) {
+    /* Per-update smoothing factors for the two time constants:
+     * alpha = 1 - exp(-dt / tau), dt = one update */
+    static float32_t a_fast = -1.0f, a_slow;
+    if (a_fast < 0.0f) {
+        a_fast = 1.0f - expf(-(float32_t)FFT_REFRESH_MS / FFT_ADAPT_FAST_MS);
+        a_slow = 1.0f - expf(-(float32_t)FFT_REFRESH_MS / FFT_ADAPT_SLOW_MS);
+    }
+    if (count > DISPLAY_BINS) count = DISPLAY_BINS;
+
+    for (uint32_t i = 0; i < count; i++) {
+        /* Back from the 0..1 bar scale to dBFS */
+        float32_t db = DB_FLOOR + bars[i] * (DB_CEIL - DB_FLOOR);
+
+        if (!s_adapt_seeded) {
+            s_adapt_fast[i] = db;
+            s_adapt_slow[i] = db;
+        } else {
+            s_adapt_fast[i] += a_fast * (db - s_adapt_fast[i]);
+            s_adapt_slow[i] += a_slow * (db - s_adapt_slow[i]);
+        }
+
+        float32_t s = s_adapt_fast[i];
+        float32_t rise = s - s_adapt_slow[i];   /* dB above this bin's norm */
+        float32_t v;
+
+        if (s < FFT_ADAPT_GATE_DB) {
+            v = 0.0f;                             /* noise floor: keep dark */
+        } else if (rise >= 0.0f) {
+            v = FFT_ADAPT_BASE + (1.0f - FFT_ADAPT_BASE) * (rise / FFT_ADAPT_RANGE_DB);
+        } else {
+            v = FFT_ADAPT_BASE * (1.0f + rise / FFT_ADAPT_RANGE_DB);
+        }
+        if (v < 0.0f) v = 0.0f;
+        if (v > 1.0f) v = 1.0f;
+        bars[i] = v;
+    }
+    s_adapt_seeded = 1;
+}
+
 /* --- Streaming: process hops as the DFSDM interrupt writes them --------- */
 
 static uint32_t  s_read_frame;            /* first frame of the next FFT window */
@@ -115,6 +165,7 @@ void FFT_Stream_Reset(uint32_t write_pos) {
     s_read_frame = write_pos / CHANNELS;
     memset(s_acc, 0, sizeof(s_acc));
     s_acc_hops = 0;
+    FFT_Adaptive_Reset();
 }
 
 uint8_t FFT_Stream_Process(const int16_t *buf, uint32_t buf_len, uint32_t write_pos) {
@@ -144,6 +195,9 @@ uint8_t FFT_Stream_Process(const int16_t *buf, uint32_t buf_len, uint32_t write_
             for (uint16_t i = 0; i < DISPLAY_BINS; i++) {
                 Clean_Display_Bars[i] = s_acc[i] / (float32_t)s_acc_hops;
             }
+#if FFT_ADAPT_ENABLE
+            FFT_Adaptive_Scale(Clean_Display_Bars, DISPLAY_BINS);
+#endif
             memset(s_acc, 0, sizeof(s_acc));
             s_acc_hops = 0;
             updated = 1;

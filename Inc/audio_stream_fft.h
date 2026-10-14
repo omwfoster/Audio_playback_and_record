@@ -29,7 +29,7 @@
  * SAMPLE_RATE / FFT_LEN Hz wide, covering 0 .. SAMPLE_RATE / 2.
  * Must be a power of two from 32 to 4096 (arm_rfft_fast_f32).
  *   e.g. 64 -> 32 bars of 250 Hz;  512 -> 256 bars of 31.25 Hz */
-#define FFT_LEN              256
+#define FFT_LEN              128
 
 #define NUM_RAW_BINS         (FFT_LEN / 2)  /* unique frequency bins */
 
@@ -61,6 +61,24 @@
  * e.g. DB_FLOOR -90, DB_CEIL -30 for speech on the MEMS mics. */
 #define DB_FLOOR             (-100.0f)
 #define DB_CEIL              (0.0f)
+
+/* Adaptive per-bin scaling (FFT_Adaptive_Scale), applied to each streamed
+ * update when FFT_ADAPT_ENABLE is 1. Each bin is shown relative to its own
+ * recent history instead of on the fixed DB_FLOOR..DB_CEIL scale:
+ *   S = short-term average of the bin's dB (FFT_ADAPT_FAST_MS): smooths
+ *       very fast transients, so one-frame spikes are scaled down
+ *   L = long-term average (FFT_ADAPT_SLOW_MS): the bin's "normal" level,
+ *       so steady high bins (hum, tones) sink back towards the baseline
+ *   shown = S - L dB: FFT_ADAPT_BASE at 0 dB, full scale at
+ *       FFT_ADAPT_RANGE_DB above the norm, fading to 0 below it.
+ * Bins whose short-term level is under FFT_ADAPT_GATE_DB stay at 0 so the
+ * noise floor's own flicker isn't amplified. */
+#define FFT_ADAPT_ENABLE     1
+#define FFT_ADAPT_FAST_MS    150.0f   /* longer = transients suppressed more */
+#define FFT_ADAPT_SLOW_MS    3000.0f  /* shorter = steady bins fade faster */
+#define FFT_ADAPT_RANGE_DB   18.0f    /* rise above the norm that reaches full scale */
+#define FFT_ADAPT_BASE       0.15f    /* bar value for "at its normal level" */
+#define FFT_ADAPT_GATE_DB    (-85.0f) /* dBFS; quieter bins show 0 */
 
 
 
@@ -119,5 +137,17 @@ void FFT_Stream_Reset(uint32_t write_pos);
 *         FFT_HOPS_PER_REFRESH hops), else 0.
 */
 uint8_t FFT_Stream_Process(const int16_t *buf, uint32_t buf_len, uint32_t write_pos);
+
+/**
+* @brief  Rescale one update of bars (0.0-1.0 on the DB_FLOOR..DB_CEIL
+*         scale, e.g. Clean_Display_Bars) in place, each bin relative to its
+*         own short- and long-term history; see FFT_ADAPT_* above. Call once
+*         per update, at FFT_REFRESH_MS intervals (the time constants assume
+*         it). FFT_Stream_Process() calls it when FFT_ADAPT_ENABLE is 1.
+*/
+void FFT_Adaptive_Scale(float32_t *bars, uint32_t count);
+
+/** @brief Forget the per-bin history; the next update re-seeds it. */
+void FFT_Adaptive_Reset(void);
 
 #endif /* INC_FFT_PROCESSING_H_ */

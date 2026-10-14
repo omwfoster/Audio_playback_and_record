@@ -25,22 +25,27 @@ extern lv_obj_t *ui_Consoletab;
 extern lv_obj_t *ui_TextArea1;
 extern lv_obj_t *ui_Spectrumtab;
 extern lv_obj_t *ui_canvasplaceholder;
-extern lv_obj_t *ui_Panel5;
-extern void ui_event_Start( lv_event_t * e);
-extern lv_obj_t *ui_Start;
-extern void ui_event_Label1( lv_event_t * e);
-extern lv_obj_t *ui_Label1;
-extern void ui_event_Stop( lv_event_t * e);
-extern lv_obj_t *ui_Stop;
-extern lv_obj_t *ui_Label2;
-extern lv_obj_t *ui_Container5;
-extern lv_obj_t *ui_Label4;
-extern void ui_event_Switch2( lv_event_t * e);
-extern lv_obj_t *ui_Switch2;
-extern lv_obj_t *ui_Label5;
+extern lv_obj_t *ui_Panel7;
+extern lv_obj_t *ui_Button7;
+extern lv_obj_t *ui_Label11;
+extern lv_obj_t *ui_Button6;
+extern lv_obj_t *ui_Label18;
+extern lv_obj_t *ui_Container10;
+extern lv_obj_t *ui_uiModeSave;
+extern lv_obj_t *ui_Label19;
+extern lv_obj_t *ui_uiModeFFT;
+extern lv_obj_t *ui_Label20;
+extern lv_obj_t *ui_ColourMap;
+extern lv_obj_t *ui_Dropdown2;
+extern lv_obj_t *ui_Container11;
+extern lv_obj_t *ui_Label15;
+extern lv_obj_t *ui_Label14;
+extern lv_obj_t *ui_Label16;
 // CUSTOM VARIABLES
 extern lv_obj_t *uic_canvasplaceholder;
-extern lv_obj_t *uic_Start;
+extern lv_obj_t *uic_ModeSave;
+extern lv_obj_t *uic_ModeFFT;
+extern lv_obj_t *uic_ColourMap;
 
 #ifdef __cplusplus
 } /*extern "C"*/
