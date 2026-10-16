@@ -29,7 +29,7 @@
  * SAMPLE_RATE / FFT_LEN Hz wide, covering 0 .. SAMPLE_RATE / 2.
  * Must be a power of two from 32 to 4096 (arm_rfft_fast_f32).
  *   e.g. 64 -> 32 bars of 250 Hz;  512 -> 256 bars of 31.25 Hz */
-#define FFT_LEN              128
+#define FFT_LEN              256
 
 #define NUM_RAW_BINS         (FFT_LEN / 2)  /* unique frequency bins */
 
@@ -73,9 +73,9 @@
  *       FFT_ADAPT_RANGE_DB above the norm, fading to 0 below it.
  * Bins whose short-term level is under FFT_ADAPT_GATE_DB stay at 0 so the
  * noise floor's own flicker isn't amplified. */
-#define FFT_ADAPT_ENABLE     1
+#define FFT_ADAPT_ENABLE     0
 #define FFT_ADAPT_FAST_MS    150.0f   /* longer = transients suppressed more */
-#define FFT_ADAPT_SLOW_MS    3000.0f  /* shorter = steady bins fade faster */
+#define FFT_ADAPT_SLOW_MS    500.0f  /* shorter = steady bins fade faster */
 #define FFT_ADAPT_RANGE_DB   18.0f    /* rise above the norm that reaches full scale */
 #define FFT_ADAPT_BASE       0.15f    /* bar value for "at its normal level" */
 #define FFT_ADAPT_GATE_DB    (-85.0f) /* dBFS; quieter bins show 0 */
@@ -138,12 +138,30 @@ void FFT_Stream_Reset(uint32_t write_pos);
 */
 uint8_t FFT_Stream_Process(const int16_t *buf, uint32_t buf_len, uint32_t write_pos);
 
+/* Adaptive scaling settings at run time (the spectrogram settings panel
+ * changes them). Start from the FFT_ADAPT_* defaults above. Call
+ * FFT_Adaptive_ParamsChanged() after changing fast_ms or slow_ms. */
+typedef struct {
+    uint8_t   enable;    /* 0 = fixed DB_FLOOR..DB_CEIL scale */
+    float32_t fast_ms;   /* FFT_ADAPT_FAST_MS */
+    float32_t slow_ms;   /* FFT_ADAPT_SLOW_MS */
+    float32_t range_db;  /* FFT_ADAPT_RANGE_DB */
+    float32_t base;      /* FFT_ADAPT_BASE */
+    float32_t gate_db;   /* FFT_ADAPT_GATE_DB */
+} fft_adapt_params_t;
+
+extern fft_adapt_params_t g_fft_adapt;
+
+/** @brief Recompute the smoothing factors after fast_ms / slow_ms change. */
+void FFT_Adaptive_ParamsChanged(void);
+
 /**
 * @brief  Rescale one update of bars (0.0-1.0 on the DB_FLOOR..DB_CEIL
 *         scale, e.g. Clean_Display_Bars) in place, each bin relative to its
 *         own short- and long-term history; see FFT_ADAPT_* above. Call once
 *         per update, at FFT_REFRESH_MS intervals (the time constants assume
-*         it). FFT_Stream_Process() calls it when FFT_ADAPT_ENABLE is 1.
+*         it). FFT_Stream_Process() calls it when g_fft_adapt.enable is set
+*         (default FFT_ADAPT_ENABLE).
 */
 void FFT_Adaptive_Scale(float32_t *bars, uint32_t count);
 

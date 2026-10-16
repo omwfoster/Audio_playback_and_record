@@ -91,6 +91,14 @@ spectro_cmap_t spectrogram_colormap_from_name(const char * name);
  */
 void spectrogram_set_colormap(uint32_t cmap);
 
+/**
+ * @brief Change the contrast curve at run time (defaults SPECTROGRAM_CMAP_BLACK
+ *        and _GAMMA): rebuilds the colour table and recolours the history.
+ *        Callers showing the colour bar or bar chart should refresh them too.
+ */
+void spectrogram_set_contrast(float black, float gamma);
+void spectrogram_get_contrast(float * black, float * gamma);
+
 /** @brief Colour for an intensity 0-255 in the current colour map. */
 lv_color_t spectrogram_colormap(uint8_t level);
 

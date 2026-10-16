@@ -166,6 +166,15 @@ uint32_t lv_draw_dma2d_color_to_dma2d_color(lv_draw_dma2d_output_cf_t cf, lv_col
 
 void lv_draw_dma2d_configure_and_start_transfer(const lv_draw_dma2d_configuration_t * conf)
 {
+    /* PATCH (audio_final_boss): DMA2D is shared with application code (the
+     * spectrogram scroll in spectrum_tab.c). Never reprogram it mid-transfer:
+     * the registers below aren't shadowed, so a running transfer would carry
+     * on with this transfer's addresses and offsets. Also clear the status
+     * flags, which this unit never reads, so other users' HAL polls work. */
+    while(DMA2D->CR & DMA2D_CR_START) {}
+    DMA2D->IFCR = DMA2D_IFCR_CTCIF | DMA2D_IFCR_CTEIF | DMA2D_IFCR_CCEIF |
+                  DMA2D_IFCR_CCTCIF | DMA2D_IFCR_CAECIF | DMA2D_IFCR_CTWIF;
+
     /* number of lines register */
     DMA2D->NLR = (conf->w << DMA2D_NLR_PL_Pos) | (conf->h << DMA2D_NLR_NL_Pos);
 

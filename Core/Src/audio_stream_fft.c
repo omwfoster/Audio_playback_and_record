@@ -111,18 +111,39 @@ static float32_t s_adapt_fast[DISPLAY_BINS];  /* S: short-term average, dB */
 static float32_t s_adapt_slow[DISPLAY_BINS];  /* L: long-term average, dB */
 static uint8_t   s_adapt_seeded;
 
+fft_adapt_params_t g_fft_adapt = {
+    .enable   = FFT_ADAPT_ENABLE,
+    .fast_ms  = FFT_ADAPT_FAST_MS,
+    .slow_ms  = FFT_ADAPT_SLOW_MS,
+    .range_db = FFT_ADAPT_RANGE_DB,
+    .base     = FFT_ADAPT_BASE,
+    .gate_db  = FFT_ADAPT_GATE_DB,
+};
+
+/* Per-update smoothing factors for the two time constants:
+ * alpha = 1 - exp(-dt / tau), dt = one update. Recomputed on change. */
+static float32_t s_a_fast = -1.0f;
+static float32_t s_a_slow;
+
+void FFT_Adaptive_ParamsChanged(void) {
+    float32_t fast = (g_fft_adapt.fast_ms > 1.0f) ? g_fft_adapt.fast_ms : 1.0f;
+    float32_t slow = (g_fft_adapt.slow_ms > 1.0f) ? g_fft_adapt.slow_ms : 1.0f;
+    s_a_fast = 1.0f - expf(-(float32_t)FFT_REFRESH_MS / fast);
+    s_a_slow = 1.0f - expf(-(float32_t)FFT_REFRESH_MS / slow);
+}
+
 void FFT_Adaptive_Reset(void) {
     s_adapt_seeded = 0;
 }
 
 void FFT_Adaptive_Scale(float32_t *bars, uint32_t count) {
-    /* Per-update smoothing factors for the two time constants:
-     * alpha = 1 - exp(-dt / tau), dt = one update */
-    static float32_t a_fast = -1.0f, a_slow;
-    if (a_fast < 0.0f) {
-        a_fast = 1.0f - expf(-(float32_t)FFT_REFRESH_MS / FFT_ADAPT_FAST_MS);
-        a_slow = 1.0f - expf(-(float32_t)FFT_REFRESH_MS / FFT_ADAPT_SLOW_MS);
+    if (s_a_fast < 0.0f) {
+        FFT_Adaptive_ParamsChanged();
     }
+    const float32_t a_fast = s_a_fast, a_slow = s_a_slow;
+    const float32_t base = g_fft_adapt.base;
+    const float32_t range = (g_fft_adapt.range_db > 0.5f) ? g_fft_adapt.range_db : 0.5f;
+    const float32_t gate = g_fft_adapt.gate_db;
     if (count > DISPLAY_BINS) count = DISPLAY_BINS;
 
     for (uint32_t i = 0; i < count; i++) {
@@ -141,12 +162,12 @@ void FFT_Adaptive_Scale(float32_t *bars, uint32_t count) {
         float32_t rise = s - s_adapt_slow[i];   /* dB above this bin's norm */
         float32_t v;
 
-        if (s < FFT_ADAPT_GATE_DB) {
+        if (s < gate) {
             v = 0.0f;                             /* noise floor: keep dark */
         } else if (rise >= 0.0f) {
-            v = FFT_ADAPT_BASE + (1.0f - FFT_ADAPT_BASE) * (rise / FFT_ADAPT_RANGE_DB);
+            v = base + (1.0f - base) * (rise / range);
         } else {
-            v = FFT_ADAPT_BASE * (1.0f + rise / FFT_ADAPT_RANGE_DB);
+            v = base * (1.0f + rise / range);
         }
         if (v < 0.0f) v = 0.0f;
         if (v > 1.0f) v = 1.0f;
@@ -195,9 +216,9 @@ uint8_t FFT_Stream_Process(const int16_t *buf, uint32_t buf_len, uint32_t write_
             for (uint16_t i = 0; i < DISPLAY_BINS; i++) {
                 Clean_Display_Bars[i] = s_acc[i] / (float32_t)s_acc_hops;
             }
-#if FFT_ADAPT_ENABLE
-            FFT_Adaptive_Scale(Clean_Display_Bars, DISPLAY_BINS);
-#endif
+            if (g_fft_adapt.enable) {
+                FFT_Adaptive_Scale(Clean_Display_Bars, DISPLAY_BINS);
+            }
             memset(s_acc, 0, sizeof(s_acc));
             s_acc_hops = 0;
             updated = 1;

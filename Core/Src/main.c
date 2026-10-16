@@ -31,6 +31,7 @@
 #include "prof.h"
 #include "spectrum_view.h"
 #include "spectrum_tab.h"
+#include "context_panel.h"
 
 prof_t g_prof_touch;
 prof_t g_prof_console;
@@ -68,6 +69,7 @@ q15_t input_left[FFT_BLOCK_SIZE];
 q15_t input_right[FFT_BLOCK_SIZE];
 
 DMA_HandleTypeDef hdma_usart1_tx;
+TIM_HandleTypeDef htim3;
 
 extern volatile uint32_t DmaRecHalfBuffCplt;
 extern volatile uint32_t DmaRecBuffCplt;
@@ -88,7 +90,7 @@ static void MX_GPIO_Init(void);
 
 static void CPU_CACHE_Enable(void);
 static void control_panel_init(void);
-static void status_panel_update(void);
+static void colour_bar_refresh(void);
 void MX_DMA_Init();
 static void MX_USART1_UART_Init(void);
 static void HandleCommand(uint8_t cmd);
@@ -166,6 +168,10 @@ int main(void) {
 	 * status card. Events are attached here, not in SquareLine. */
 	control_panel_init();
 
+	/* Context area (ui_ContextContainer): FFT status card, or spectrogram
+	 * settings while the Spectrogram tab is open */
+	context_panel_init(colour_bar_refresh);
+
 	while (1) {
 		App_Process();
 
@@ -184,7 +190,7 @@ int main(void) {
 		prof_stop(&g_prof_lv, t_prof);
 		t_lv = HAL_GetTick() - t_lv;
 
-		status_panel_update();
+		context_panel_update();
 
 		if (AUDIO_REC_IsActive()
 				&& (AUDIO_REC_GetMode() == AUDIO_REC_MODE_LOG)) {
@@ -1007,7 +1013,7 @@ void Default_Handler_C(void) {
  *   ui_uiModeSave, ui_uiModeFFT   Save | FFT mode pair
  *   ui_Dropdown2              colour map (options matched by name)
  *   ui_ColourMap              colour bar for the selected map (below the dropdown)
- *   ui_Label15 / 14 / 16      status: state, elapsed time, dropped buffers
+ *   ui_ContextContainer       status card / spectrogram settings (context_panel.c)
  * All events are attached in control_panel_init(); SquareLine function
  * export is off. */
 
@@ -1069,13 +1075,20 @@ static void mode_btn_cb(lv_event_t * e)
  * Also repaints the colour bar (ui_ColourMap) with the new map. */
 static void colormap_apply(lv_obj_t * dd)
 {
-	static lv_grad_dsc_t s_bar_grad; /* the style keeps a pointer to it */
 	char name[16];
 
 	lv_dropdown_get_selected_str(dd, name, sizeof(name));
 	spectrogram_set_colormap(spectrogram_colormap_from_name(name));
-	spectrum_view_refresh();
+	colour_bar_refresh();
+}
 
+/* Repaint what's drawn from the colour table outside the spectrogram: the
+ * colour bar and the bar chart. Also used by the contrast sliders. */
+static void colour_bar_refresh(void)
+{
+	static lv_grad_dsc_t s_bar_grad; /* the style keeps a pointer to it */
+
+	spectrum_view_refresh();
 	spectrogram_colormap_gradient(&s_bar_grad);
 	lv_obj_set_style_bg_grad(ui_ColourMap, &s_bar_grad, LV_PART_MAIN);
 	lv_obj_invalidate(ui_ColourMap);
@@ -1116,56 +1129,6 @@ static void control_panel_init(void)
 	lv_obj_add_event_cb(ui_Dropdown2, colormap_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
 	colormap_apply(ui_Dropdown2);
 
-	status_panel_update();
-}
-
-/* Status card: called every main-loop pass, but only touches the labels when
- * something visible changes (state, elapsed second, drop count), so it
- * doesn't cause redraws on its own. */
-static void status_panel_update(void)
-{
-	static int8_t   s_state = -1;       /* 0 idle, 1 saving, 2 FFT */
-	static uint32_t s_t0;
-	static uint32_t s_sec = UINT32_MAX;
-	static uint32_t s_dropped = UINT32_MAX;
-
-	int8_t state = 0;
-	if (AUDIO_REC_IsActive()) {
-		state = (AUDIO_REC_GetMode() == AUDIO_REC_MODE_FFT) ? 2 : 1;
-	}
-
-	if (state != s_state) {
-		if (state != 0 && s_state <= 0) {
-			s_t0 = HAL_GetTick();  /* a capture started: restart the clock */
-			s_sec = UINT32_MAX;
-		}
-		s_state = state;
-		static const char * const text[] = {
-			LV_SYMBOL_BULLET " IDLE", LV_SYMBOL_BULLET " RECORDING", LV_SYMBOL_BULLET " LIVE FFT" };
-		static const uint32_t color[] = { PANEL_IDLE, PANEL_REC, PANEL_ACCENT };
-		lv_label_set_text(ui_Label15, text[state]);
-		lv_obj_set_style_text_color(ui_Label15, lv_color_hex(color[state]), LV_PART_MAIN);
-	}
-
-	/* Elapsed time runs while capturing and holds its last value when idle */
-	if (state != 0) {
-		uint32_t sec = (HAL_GetTick() - s_t0) / 1000u;
-		if (sec != s_sec) {
-			s_sec = sec;
-			lv_label_set_text_fmt(ui_Label14, "%02lu:%02lu",
-			                      (unsigned long)(sec / 60u), (unsigned long)(sec % 60u));
-		}
-
-		uint32_t dropped = AUDIO_REC_GetDroppedCount();
-		if (dropped != s_dropped) {
-			s_dropped = dropped;
-			lv_label_set_text_fmt(ui_Label16, "Dropped buffers: %lu", (unsigned long)dropped);
-		}
-	} else if (s_sec == UINT32_MAX) {
-		s_sec = 0;
-		lv_label_set_text(ui_Label14, "00:00");
-		lv_label_set_text(ui_Label16, "Dropped buffers: 0");
-	}
 }
 
 #ifdef USE_FULL_ASSERT

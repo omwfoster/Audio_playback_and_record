@@ -71,12 +71,24 @@ hdma2d.LayerCfg[1].InputOffset = SPECTROGRAM_COL_PX; // Skip the oldest columns 
 HAL_DMA2D_Init(&hdma2d);
 HAL_DMA2D_ConfigLayer(&hdma2d, 1);
 
+// LVGL's DMA2D draw unit never clears the transfer-complete flag (it polls
+// CR.START), so TC is usually still set from its last draw. Clear it, or
+// HAL_DMA2D_PollForTransfer() returns at once while this copy is still
+// running, and LVGL then reprograms DMA2D mid-copy: the rest of the canvas
+// lands in LVGL's render buffer as a sheared copy inside the tab.
+__HAL_DMA2D_CLEAR_FLAG(&hdma2d, DMA2D_FLAG_TC | DMA2D_FLAG_TE | DMA2D_FLAG_CE);
+
 // Transfer size: (Width - SPECTROGRAM_COL_PX) wide, full height tall.
 // Overlapping copy is safe: destination trails source.
 HAL_DMA2D_Start(&hdma2d, src_addr, dst_addr, canvas_w - SPECTROGRAM_COL_PX, canvas_h);
 
 // Block thread until hardware completes the block movement
 HAL_DMA2D_PollForTransfer(&hdma2d, 100);
+
+// Belt and braces: never leave with DMA2D still running
+uint32_t t0 = HAL_GetTick();
+while ((DMA2D->CR & DMA2D_CR_START) && (HAL_GetTick() - t0) < 100u) {
+}
 
 // DMA2D wrote SDRAM behind the D-cache: drop cached copies so the CPU (and
 // LVGL's renderer) read the shifted image, not stale lines
@@ -127,6 +139,11 @@ static lv_color_t cmap_lut[256];
 /* Stops of the current map, for spectrogram_colormap_gradient() */
 static const cmap_stop_t * cmap_cur_stops;
 static uint32_t cmap_cur_n;
+static uint32_t cmap_cur_id = SPECTRO_CMAP_JET;
+
+/* Contrast curve, adjustable at run time (spectrogram_set_contrast) */
+static float cmap_black = SPECTROGRAM_CMAP_BLACK;
+static float cmap_gamma = SPECTROGRAM_CMAP_GAMMA;
 
 /* Colour of a map at position @p pos (0.0-255.0), interpolating between
  * its stops */
@@ -158,13 +175,14 @@ default:                   stops = cmap_jet;     n = sizeof(cmap_jet) / sizeof(c
 }
 cmap_cur_stops = stops;
 cmap_cur_n = n;
+cmap_cur_id = cmap;
 
 for (uint32_t v = 0; v < 256; v++) {
 // Contrast curve: black point, then gamma, then look up the map there
-float x = ((float)v / 255.0f - SPECTROGRAM_CMAP_BLACK) / (1.0f - SPECTROGRAM_CMAP_BLACK);
+float x = ((float)v / 255.0f - cmap_black) / (1.0f - cmap_black);
 if (x < 0.0f) x = 0.0f;
 if (x > 1.0f) x = 1.0f;
-x = powf(x, SPECTROGRAM_CMAP_GAMMA);
+x = powf(x, cmap_gamma);
 cmap_lut[v] = cmap_sample(stops, n, x * 255.0f);
 }
 
@@ -218,6 +236,21 @@ fracs[i] = (uint8_t)level;
 memset(grad, 0, sizeof(*grad));
 lv_grad_init_stops(grad, colors, NULL, fracs, (int)n);
 lv_grad_horizontal_init(grad);
+}
+
+void spectrogram_set_contrast(float black, float gamma) {
+if (black < 0.0f) black = 0.0f;
+if (black > 0.9f) black = 0.9f;
+if (gamma < 0.2f) gamma = 0.2f;
+if (gamma > 5.0f) gamma = 5.0f;
+cmap_black = black;
+cmap_gamma = gamma;
+spectrogram_set_colormap(cmap_cur_id);  // rebuild the table, recolour history
+}
+
+void spectrogram_get_contrast(float * black, float * gamma) {
+if (black) *black = cmap_black;
+if (gamma) *gamma = cmap_gamma;
 }
 
 lv_color_t spectrogram_colormap(uint8_t level) {
