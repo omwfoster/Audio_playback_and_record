@@ -29,7 +29,7 @@ extern "C" {
  * The minimum also keeps the DC bin (and any DFSDM offset) off screen;
  * keep it above one FFT bin (SAMPLE_RATE / FFT_LEN = 31.25 Hz at 512). */
 #define SPECTROGRAM_FREQ_MIN   60.0f
-#define SPECTROGRAM_FREQ_MAX   8000.0f
+#define SPECTROGRAM_FREQ_MAX   12000.0f  /* <= SAMPLE_RATE / 2; the MEMS mics give little above ~10 kHz */
 
 /* Colour-map contrast, applied when the colour table is built (so the
  * spectrogram, bar colours and colour bar all follow it):

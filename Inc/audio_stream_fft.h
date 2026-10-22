@@ -12,7 +12,7 @@
 
 /* --- Configuration Framework --- */
 
-#define SAMPLE_RATE          16000  /* must match DEFAULT_AUDIO_IN_FREQ */
+#define SAMPLE_RATE          BSP_AUDIO_FREQUENCY_32K  /* must match DEFAULT_AUDIO_IN_FREQ */
 
 #define CHANNELS             2  /* Stereo layout */
 
@@ -29,7 +29,7 @@
  * SAMPLE_RATE / FFT_LEN Hz wide, covering 0 .. SAMPLE_RATE / 2.
  * Must be a power of two from 32 to 4096 (arm_rfft_fast_f32).
  *   e.g. 64 -> 32 bars of 250 Hz;  512 -> 256 bars of 31.25 Hz */
-#define FFT_LEN              256
+#define FFT_LEN              128
 
 #define NUM_RAW_BINS         (FFT_LEN / 2)  /* unique frequency bins */
 

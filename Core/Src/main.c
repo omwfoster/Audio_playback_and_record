@@ -32,6 +32,7 @@
 #include "spectrum_view.h"
 #include "spectrum_tab.h"
 #include "context_panel.h"
+#include "neopixel.h"
 
 prof_t g_prof_touch;
 prof_t g_prof_console;
@@ -42,11 +43,7 @@ UART_HandleTypeDef huart1;
 FATFS SDCard_FatFs;
 char SDCard_Path[4] = "0:/";
 
-extern __attribute__((section(".dma_buffers")))q15_t fft_output[]; // FFT_SIZE * 2
 
-extern __attribute__((section(".dma_buffers")))q15_t mag_bins[FFT_BLOCK_SIZE];
-
-extern __attribute__((section(".dma_buffers")))q15_t mag_bins_output[FFT_BLOCK_SIZE];
 
 uint16_t pcm_left[FFT_BLOCK_SIZE * 2];
 uint16_t pcm_right[FFT_BLOCK_SIZE * 2];
@@ -59,11 +56,7 @@ AUDIO_ErrorTypeDef status;
 AUDIO_ApplicationTypeDef appli_state;
 AUDIO_ApplicationTypeDef *h_appli_state;
 
-q15_t fft_output[FFT_BLOCK_SIZE * 2]; // FFT_SIZE * 2
 
-q15_t mag_bins[FFT_BLOCK_SIZE];
-
-q15_t mag_bins_output[FFT_BLOCK_SIZE];
 
 q15_t input_left[FFT_BLOCK_SIZE];
 q15_t input_right[FFT_BLOCK_SIZE];
@@ -73,6 +66,8 @@ TIM_HandleTypeDef htim3;
 
 extern volatile uint32_t DmaRecHalfBuffCplt;
 extern volatile uint32_t DmaRecBuffCplt;
+
+NeoPixel_t led_strip[NUM_LEDS];
 
 uint32_t PlaybackStarted = 0;
 /* USER CODE BEGIN PV */
@@ -171,6 +166,38 @@ int main(void) {
 	/* Context area (ui_ContextContainer): FFT status card, or spectrogram
 	 * settings while the Spectrogram tab is open */
 	context_panel_init(colour_bar_refresh);
+
+	/* NeoPixel shield (data on Arduino D5 / PC8): set up, run the ~1.5 s
+	 * wiring check (chase through LED indices, white flash), end dark.
+	 * Set NEOPIXEL_SELFTEST to 0 once the shield is confirmed working. */
+#ifndef NEOPIXEL_SELFTEST
+#define NEOPIXEL_SELFTEST 1
+#endif
+	NeoPixel_Init();
+#if NEOPIXEL_SELFTEST
+	NeoPixel_SelfTest(40);
+	{
+		/* Self-test report on the Console tab: if half/full callbacks are
+		 * 0 the PWM/DMA never ran (software); if they count up, the signal
+		 * went out and the problem is wiring, power or logic level. */
+		NeoPixel_Diag_t d;
+		NeoPixel_GetDiag(&d);
+		ui_console_log("NeoPixel init %u/%u/%u start %u (0=OK)",
+		               d.st_pwm_init, d.st_config, d.st_dma_init, d.st_start);
+		ui_console_log("  shows %lu half %lu full %lu busy %u",
+		               (unsigned long)d.shows, (unsigned long)d.half_cb,
+		               (unsigned long)d.full_cb, d.busy);
+		ui_console_log("  ARR %lu T0H %u T1H %u (period %u)",
+		               (unsigned long)d.tim_arr, d.t0h, d.t1h, d.period);
+		ui_console_log("  CEN %u CC3E %u CC3DE %u DMA EN %u NDTR %lu",
+		               d.tim_cen, d.tim_cc3e, d.tim_cc3de, d.dma_en,
+		               (unsigned long)d.dma_ndtr);
+		ui_console_log("  PC8 mode %u af %u (want 2/2) HISR %08lx",
+		               d.pc8_mode, d.pc8_af, (unsigned long)d.dma_lisr_hisr);
+	}
+#else
+	NeoPixel_Show();   /* all-off frame */
+#endif
 
 	while (1) {
 		App_Process();
@@ -1098,7 +1125,19 @@ static void colour_bar_refresh(void)
  * under the dropdown, painted by colormap_apply() */
 static void colour_bar_init(void)
 {
-	lv_obj_swap(ui_ColourMap, ui_Dropdown2);  /* SquareLine has it above the dropdown */
+	/* Put the dropdown and colour bar directly in the panel, right after the
+	 * mode-button row, whatever SquareLine did with them. (An export put the
+	 * dropdown inside ui_Container10 with the mode buttons; swapping it with
+	 * the colour bar across parents then pushed both mode buttons out of the
+	 * row, off the panel, so the mode could never leave Save.) */
+	if (lv_obj_get_parent(ui_Dropdown2) != ui_Panel7) {
+		lv_obj_set_parent(ui_Dropdown2, ui_Panel7);
+	}
+	lv_obj_move_to_index(ui_Dropdown2, lv_obj_get_index(ui_Container10) + 1);
+	if (lv_obj_get_parent(ui_ColourMap) != ui_Panel7) {
+		lv_obj_set_parent(ui_ColourMap, ui_Panel7);
+	}
+	lv_obj_move_to_index(ui_ColourMap, lv_obj_get_index(ui_Dropdown2) + 1);
 	lv_label_set_text(ui_ColourMap, "");
 	lv_obj_set_size(ui_ColourMap, lv_pct(100), 10);
 	lv_obj_set_style_pad_all(ui_ColourMap, 0, LV_PART_MAIN);
@@ -1120,6 +1159,11 @@ static void control_panel_init(void)
 
 	lv_obj_add_event_cb(ui_Button7, start_btn_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_add_event_cb(ui_Button6, stop_btn_cb, LV_EVENT_CLICKED, NULL);
+
+	/* Label the mode pair by what it does (SquareLine has "FFT" on the Save
+	 * button and "Spec" on the FFT button) */
+	lv_label_set_text(ui_Label19, "Save");
+	lv_label_set_text(ui_Label20, "FFT");
 
 	lv_obj_add_event_cb(ui_uiModeSave, mode_btn_cb, LV_EVENT_CLICKED, NULL);
 	lv_obj_add_event_cb(ui_uiModeFFT, mode_btn_cb, LV_EVENT_CLICKED, NULL);

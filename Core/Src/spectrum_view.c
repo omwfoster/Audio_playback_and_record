@@ -5,8 +5,29 @@
  */
 
 #include "spectrum_view.h"
+#include <string.h>
 #include "audio_stream_fft.h"
 #include "spectrum_tab.h"   /* shared colour map (ui_heatmap dropdown) */
+#include "ui.h"             /* ui_TabView4, ui_FFTtab */
+#include "bar_mapping.h"
+#include "neopixel.h"
+
+/* --- NeoPixel shield mirror of the FFT bars ------------------------------
+ * While the FFT tab is open, each update is reduced to NUM_BARS log-spaced
+ * bars (bar_mapping.c) and drawn on the 5x8 shield: one column per bar,
+ * lit from the bottom, each LED coloured from the heatmap by its height. */
+#define LED_COLS        8           /* shield columns = NUM_BARS */
+#define LED_ROWS        5
+/* The shield is wired row by row from the top-left LED (index 0), as seen
+ * from its LED side. The F769I-DISCO's Arduino header is on the back of the
+ * board, so if the bars come out mirrored or upside down, flip these. */
+#define LED_FLIP_X      0
+#define LED_FLIP_Y      0
+/* 0-255. 40 LEDs at full white draw ~2.4 A; 24 keeps the whole shield
+ * under ~250 mA, which the board's 5 V header can supply. */
+#define LED_BRIGHTNESS  24
+
+static uint8_t s_leds_on;   /* something is lit (so leaving needs a clear) */
 
 /* Chart works in integers: 0.0-1.0 bars are scaled to 0-SPECTRUM_Y_MAX */
 #define SPECTRUM_Y_MAX  1000
@@ -38,6 +59,69 @@ static void bar_color_cb(lv_event_t * e)
     if (v < 0) v = 0;
     if (v > SPECTRUM_Y_MAX) v = SPECTRUM_Y_MAX;
     fill->color = spectrogram_colormap((uint8_t)((v * 255) / SPECTRUM_Y_MAX));
+}
+
+static int fft_tab_open(void)
+{
+    if (ui_TabView4 == NULL || ui_FFTtab == NULL) {
+        return 0;
+    }
+    return lv_tabview_get_tab_active(ui_TabView4) == (uint32_t)lv_obj_get_index(ui_FFTtab);
+}
+
+/* LED index for a shield column (0 = left) and row (0 = bottom) */
+static uint32_t led_index(uint32_t col, uint32_t row)
+{
+    uint32_t x = LED_FLIP_X ? (LED_COLS - 1u - col) : col;
+    uint32_t y_top = LED_FLIP_Y ? row : (LED_ROWS - 1u - row);   /* wiring counts from the top */
+    return y_top * LED_COLS + x;
+}
+
+static void leds_off(void)
+{
+    if (!s_leds_on || NeoPixel_IsBusy()) {
+        return;   /* nothing lit, or try again on the next update */
+    }
+    memset(led_strip, 0, sizeof(led_strip));
+    NeoPixel_Show();
+    s_leds_on = 0;
+}
+
+static void leds_update(const float * bars, uint32_t count)
+{
+    static float32_t col_level[NUM_BARS];
+
+    if (!fft_tab_open()) {
+        leds_off();
+        return;
+    }
+    if (count < NUM_BARS + 1u || NeoPixel_IsBusy()) {
+        return;   /* previous frame still going out: skip this one */
+    }
+
+    /* Bin 0 is DC (and any DFSDM offset): leave it out of the low bar */
+    BarMapping_Process(&bars[1], col_level);
+
+    for (uint32_t c = 0; c < LED_COLS; c++) {
+        float v = col_level[c];          /* can exceed 1 by the EQ gain */
+        if (v < 0.0f) v = 0.0f;
+        if (v > 1.0f) v = 1.0f;
+        uint32_t lit = (uint32_t)(v * LED_ROWS + 0.5f);
+
+        for (uint32_t r = 0; r < LED_ROWS; r++) {
+            NeoPixel_t * px = &led_strip[led_index(c, r)];
+            if (r < lit) {
+                lv_color_t col = spectrogram_colormap((uint8_t)(((r + 1u) * 255u) / LED_ROWS));
+                px->r = (uint8_t)((col.red   * LED_BRIGHTNESS) / 255u);
+                px->g = (uint8_t)((col.green * LED_BRIGHTNESS) / 255u);
+                px->b = (uint8_t)((col.blue  * LED_BRIGHTNESS) / 255u);
+            } else {
+                px->r = px->g = px->b = 0;
+            }
+        }
+    }
+    NeoPixel_Show();
+    s_leds_on = 1;
 }
 
 void spectrum_view_init(lv_obj_t * chart)
@@ -77,8 +161,11 @@ void spectrum_view_init(lv_obj_t * chart)
         }
         lv_scale_mode_t mode = lv_scale_get_mode(child);
         if (mode == LV_SCALE_MODE_HORIZONTAL_BOTTOM || mode == LV_SCALE_MODE_HORIZONTAL_TOP) {
-            lv_scale_set_range(child, 0, (int32_t)khz);       /* 0..8 kHz */
-            lv_scale_set_total_tick_count(child, khz * 2 + 1);
+            /* A label every 1 kHz up to 8 kHz, every 2 kHz above that
+             * (0-16 kHz at 32 kHz sampling), with one minor tick between */
+            uint32_t step = (khz > 8u) ? 2u : 1u;
+            lv_scale_set_range(child, 0, (int32_t)khz);
+            lv_scale_set_total_tick_count(child, (khz / step) * 2u + 1u);
             lv_scale_set_major_tick_every(child, 2);
         } else {
             /* dBFS span the 0.0-1.0 bars represent (audio_stream_fft.h) */
@@ -87,6 +174,9 @@ void spectrum_view_init(lv_obj_t * chart)
             lv_scale_set_major_tick_every(child, 2);
         }
     }
+
+    /* NeoPixel bars: bins 1..DISPLAY_BINS-1 (DC left out) into NUM_BARS */
+    BarMapping_Init(DISPLAY_BINS - 1u);
 
     spectrum_view_clear();
 }
@@ -107,6 +197,8 @@ void spectrum_view_update(const float * bars, uint32_t count)
         s_bars[i] = (int32_t)(v * SPECTRUM_Y_MAX);
     }
     lv_chart_refresh(s_chart);
+
+    leds_update(bars, count);
 }
 
 void spectrum_view_refresh(void)
@@ -125,4 +217,5 @@ void spectrum_view_clear(void)
         s_bars[i] = 0;
     }
     lv_chart_refresh(s_chart);
+    leds_off();
 }

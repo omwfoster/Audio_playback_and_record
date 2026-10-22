@@ -3,15 +3,15 @@
   * @file    Audio/Audio_playback_and_record/Src/waverecorder.c
   * @brief   MEMS microphone (DFSDM) → WAV file on microSD card.
   *
-  *  Two MP34DT01 MEMS mics captured at 16 kHz / 16-bit / stereo via DFSDM
+  *  Two MP34DT01 MEMS mics captured at 32 kHz / 16-bit / stereo via DFSDM
   *  with DMA ping-pong buffering.  PCM frames are written to "Wave.wav" on
   *  the microSD card using FATFS blocking writes while DMA fills the other
   *  half of the buffer.
   *
-  *  Buffer timing at 16 kHz stereo 16-bit:
-  *    AUDIO_IN_PCM_BUFFER_SIZE = 32768 half-words (65 536 bytes)
-  *    Each half = 16384 half-words = 32768 bytes = 512 ms of audio
-  *    → a half must be written to SD within 512 ms of its callback, or
+  *  Buffer timing at 32 kHz stereo 16-bit:
+  *    AUDIO_IN_PCM_BUFFER_SIZE = 49152 half-words (98 304 bytes)
+  *    Each half = 24576 half-words = 49152 bytes = 384 ms of audio
+  *    → a half must be written to SD within 384 ms of its callback, or
   *      the DMA starts overwriting it (silent glitch, not counted as a drop).
   ******************************************************************************
   */
@@ -171,7 +171,7 @@ AUDIO_ErrorTypeDef AUDIO_REC_Start(void)
                    0 /* data size unknown yet */);
   }
 
-  /* Initialise BSP audio input (DFSDM, 16 kHz, 16-bit, stereo) */
+  /* Initialise BSP audio input (DFSDM, DEFAULT_AUDIO_IN_FREQ, 16-bit, stereo) */
   if (BSP_AUDIO_IN_Init(DEFAULT_AUDIO_IN_FREQ,
                         DEFAULT_AUDIO_IN_BIT_RESOLUTION,
                         DEFAULT_AUDIO_IN_CHANNEL_NBR) != AUDIO_OK)

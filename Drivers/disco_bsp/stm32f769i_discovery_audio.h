@@ -213,7 +213,7 @@
 #define AUDIO_TIMEOUT                       ((uint8_t)2)
 
 /* Audio In default settings */
-#define DEFAULT_AUDIO_IN_FREQ               BSP_AUDIO_FREQUENCY_16K
+#define DEFAULT_AUDIO_IN_FREQ               BSP_AUDIO_FREQUENCY_32K
 #define DEFAULT_AUDIO_IN_BIT_RESOLUTION     ((uint8_t)16)
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR        ((uint8_t)2)
 #define DEFAULT_AUDIO_IN_VOLUME             ((uint16_t)64)
